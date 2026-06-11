@@ -80,7 +80,7 @@ body {
   background: var(--white);
   border-radius: 12px;
   padding: 44px 52px 40px;
-  width: 100%; max-width: 460px;
+  width: 100%; max-width: 520px;
   box-shadow: var(--shadow-lg);
   display: flex; flex-direction: column; align-items: center; gap: 0;
 }
@@ -1121,7 +1121,6 @@ function hideLoginScreen() {
 }
 function renderLoginForm() {
   document.getElementById('login-content').innerHTML = `
-    <div class="login-mode-title">Acesso ao sistema</div>
     <div class="login-field">
       <label>E-mail</label>
       <input type="email" id="li-email" placeholder="seu@email.com" autocomplete="username">
