@@ -1904,22 +1904,22 @@ function renderLista(){
     {key:'ult_mov',     label:'Últ. Movimentação',  sort:true},
     {key:'acoes',       label:'',                   sort:false},
   ];
-  const filterStyle=`width:100%;margin-top:5px;padding:4px 7px;font-size:11px;border:1px solid var(--line);border-radius:var(--r);background:var(--white);font-family:'Source Sans 3',sans-serif;outline:none;color:var(--ink2);box-sizing:border-box`;
+  const sortArrow=k=>_sortCol===k?(_sortDir===1?' ↑':' ↓'):'';
+  const thStyle=`padding:8px 10px;white-space:nowrap;user-select:none;background:var(--paper);border-bottom:1px solid var(--line)`;
+  const inpStyle=k=>`width:100%;padding:5px 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);background:transparent;border:none;border-bottom:2px solid ${_sortCol===k?'var(--navy-lt)':'transparent'};outline:none;font-family:'Source Sans 3',sans-serif;cursor:pointer;box-sizing:border-box`;
+  const selStyle=k=>`width:100%;padding:5px 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);background:transparent;border:none;border-bottom:2px solid ${_sortCol===k?'var(--navy-lt)':'transparent'};outline:none;font-family:'Source Sans 3',sans-serif;cursor:pointer`;
   const th=cols.map(c=>{
-    if(!c.sort) return `<th></th>`;
-    const cls='sortable'+((_sortCol===c.key&&_sortDir===1)?' sort-asc':(_sortCol===c.key&&_sortDir===-1)?' sort-desc':'');
-    let filterHtml='';
-    if(c.key==='numero_ip')      filterHtml=`<input id="fc-ip" placeholder="Filtrar…" oninput="atualizaTabela()" style="${filterStyle}" onclick="event.stopPropagation()">`;
-    else if(c.key==='numero_bo') filterHtml=`<input id="fc-bo" placeholder="Filtrar…" oninput="atualizaTabela()" style="${filterStyle}" onclick="event.stopPropagation()">`;
-    else if(c.key==='numero_processo') filterHtml=`<input id="fc-pc" placeholder="Filtrar…" oninput="atualizaTabela()" style="${filterStyle}" onclick="event.stopPropagation()">`;
-    else if(c.key==='cliente')   filterHtml=`<input id="fc-cl" placeholder="Filtrar…" oninput="atualizaTabela()" style="${filterStyle}" onclick="event.stopPropagation()">`;
-    else if(c.key==='crime')     filterHtml=`<input id="fc-cr" placeholder="Filtrar…" oninput="atualizaTabela()" style="${filterStyle}" onclick="event.stopPropagation()">`;
-    else if(c.key==='status')    filterHtml=`<select id="fc-st" onchange="atualizaTabela()" style="${filterStyle}" onclick="event.stopPropagation()"><option value="">Todos</option>${Object.keys(STATUS_CFG).map(s=>`<option>${s}</option>`).join('')}</select>`;
-    else if(c.key==='prescricao') filterHtml=`<select id="fc-pr" onchange="atualizaTabela()" style="${filterStyle}" onclick="event.stopPropagation()"><option value="">Qualquer</option><option value="alerta">Com alerta</option><option value="ok">Sem alerta</option></select>`;
-    return `<th class="${cls}" onclick="sortLista('${c.key}')" style="vertical-align:top;padding-bottom:8px;white-space:normal;min-width:80px">
-      <div style="white-space:nowrap;margin-bottom:5px">${c.label}</div>
-      ${filterHtml?`<div style="display:block">${filterHtml}</div>`:''}
-    </th>`;
+    if(!c.sort) return `<th style="${thStyle}"></th>`;
+    let inner='';
+    if(c.key==='numero_ip')       inner=`<input id="fc-ip" placeholder="Nº IP${sortArrow('numero_ip')}" oninput="atualizaTabela()" onfocus="this.style.borderBottomColor='var(--navy-lt)'" onblur="this.style.borderBottomColor=_sortCol==='numero_ip'?'var(--navy-lt)':'transparent'" onclick="sortLista('numero_ip')" style="${inpStyle('numero_ip')}">`;
+    else if(c.key==='numero_bo')  inner=`<input id="fc-bo" placeholder="Nº BO${sortArrow('numero_bo')}" oninput="atualizaTabela()" onfocus="this.style.borderBottomColor='var(--navy-lt)'" onblur="this.style.borderBottomColor=_sortCol==='numero_bo'?'var(--navy-lt)':'transparent'" onclick="sortLista('numero_bo')" style="${inpStyle('numero_bo')}">`;
+    else if(c.key==='numero_processo') inner=`<input id="fc-pc" placeholder="Nº Processo${sortArrow('numero_processo')}" oninput="atualizaTabela()" onfocus="this.style.borderBottomColor='var(--navy-lt)'" onblur="this.style.borderBottomColor='transparent'" onclick="sortLista('numero_processo')" style="${inpStyle('numero_processo')}">`;
+    else if(c.key==='cliente')    inner=`<input id="fc-cl" placeholder="Cliente${sortArrow('cliente')}" oninput="atualizaTabela()" onfocus="this.style.borderBottomColor='var(--navy-lt)'" onblur="this.style.borderBottomColor='transparent'" onclick="sortLista('cliente')" style="${inpStyle('cliente')}">`;
+    else if(c.key==='crime')      inner=`<input id="fc-cr" placeholder="Crime / Natureza${sortArrow('crime')}" oninput="atualizaTabela()" onfocus="this.style.borderBottomColor='var(--navy-lt)'" onblur="this.style.borderBottomColor='transparent'" onclick="sortLista('crime')" style="${inpStyle('crime')}">`;
+    else if(c.key==='status')     inner=`<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:3px;cursor:pointer" onclick="sortLista('status')">Status${sortArrow('status')}</div><select id="fc-st" onchange="atualizaTabela()" style="${selStyle('status')}"><option value="">Todos os status</option>${Object.keys(STATUS_CFG).map(s=>`<option>${s}</option>`).join('')}</select>`;
+    else if(c.key==='prescricao') inner=`<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:3px;cursor:pointer" onclick="sortLista('prescricao')">Prescrição${sortArrow('prescricao')}</div><select id="fc-pr" onchange="atualizaTabela()" style="${selStyle('prescricao')}"><option value="">Qualquer</option><option value="alerta">Com alerta</option><option value="ok">Sem alerta</option></select>`;
+    else inner=`<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);cursor:pointer" onclick="sortLista('${c.key}')">${c.label}${sortArrow(c.key)}</span>`;
+    return `<th style="${thStyle};padding:6px 10px">${inner}</th>`;
   }).join('');
   return `
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
