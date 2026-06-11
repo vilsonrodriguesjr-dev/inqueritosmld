@@ -960,6 +960,25 @@ async function supaLoadData() {
   if (data && data.data) {
     _cache = data.data;
   }
+  const hora=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  _syncUI('loaded', hora);
+}
+
+let _syncLastTime='', _syncCountdown=60, _syncTimer=null;
+
+function _syncTick(){
+  const lbl=document.getElementById('sync-label');
+  if(!lbl||!_syncLastTime) return;
+  _syncCountdown--;
+  if(_syncCountdown<=0){
+    _syncCountdown=60;
+    supaLoadData().then(()=>{
+      _syncLastTime=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      _syncCountdown=60;
+    });
+  }
+  const m=Math.floor(_syncCountdown/60), s=_syncCountdown%60;
+  lbl.textContent='Atualizado '+_syncLastTime+' · próx. '+(m>0?m+':':'')+(s<10&&m>0?'0':'')+s;
 }
 
 function _syncUI(state, label){
@@ -969,9 +988,12 @@ function _syncUI(state, label){
   if(!ind) return;
   ind.style.display='flex';
   if(state==='saving'){ dot.style.background='var(--gold-lt)'; lbl.textContent='Salvando...'; }
-  else if(state==='ok'){
-    dot.style.background='var(--sage-lt)'; lbl.textContent='Atualizado '+label;
-    setTimeout(()=>{ dot.style.background='var(--muted2)'; lbl.textContent='Atualizado '+label; },3000);
+  else if(state==='ok'||state==='loaded'){
+    _syncLastTime=label; _syncCountdown=60;
+    dot.style.background='var(--sage-lt)';
+    lbl.textContent='Atualizado '+label+' · próx. 1:00';
+    setTimeout(()=>dot.style.background='var(--muted2)', 2000);
+    if(!_syncTimer) _syncTimer=setInterval(_syncTick, 1000);
   } else if(state==='err'){ dot.style.background='var(--crimson-lt)'; lbl.textContent='Erro ao salvar'; }
 }
 
