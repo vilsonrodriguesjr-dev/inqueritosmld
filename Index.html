@@ -1916,9 +1916,9 @@ function renderLista(){
     else if(c.key==='crime')     filterHtml=`<input id="fc-cr" placeholder="Filtrar…" oninput="atualizaTabela()" style="${filterStyle}" onclick="event.stopPropagation()">`;
     else if(c.key==='status')    filterHtml=`<select id="fc-st" onchange="atualizaTabela()" style="${filterStyle}" onclick="event.stopPropagation()"><option value="">Todos</option>${Object.keys(STATUS_CFG).map(s=>`<option>${s}</option>`).join('')}</select>`;
     else if(c.key==='prescricao') filterHtml=`<select id="fc-pr" onchange="atualizaTabela()" style="${filterStyle}" onclick="event.stopPropagation()"><option value="">Qualquer</option><option value="alerta">Com alerta</option><option value="ok">Sem alerta</option></select>`;
-    return `<th class="${cls}" onclick="sortLista('${c.key}')" style="vertical-align:top;padding-bottom:8px">
-      <div style="white-space:nowrap">${c.label}</div>
-      ${filterHtml}
+    return `<th class="${cls}" onclick="sortLista('${c.key}')" style="vertical-align:top;padding-bottom:8px;white-space:normal;min-width:80px">
+      <div style="white-space:nowrap;margin-bottom:5px">${c.label}</div>
+      ${filterHtml?`<div style="display:block">${filterHtml}</div>`:''}
     </th>`;
   }).join('');
   return `
