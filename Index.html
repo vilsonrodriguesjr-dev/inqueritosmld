@@ -970,7 +970,7 @@ body {
     </button>
     <div class="topbar-title" id="topbar-title">Dashboard</div>
     <button onclick="abrirBuscaGlobal()" title="Busca global (Ctrl+K)" style="background:none;border:1px solid var(--line);border-radius:var(--r2);padding:5px 12px;font-size:12px;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:6px;margin-left:auto"><span>⌕</span><span>Buscar...</span><span style="font-size:10px;background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:1px 5px">Ctrl K</span></button>
-    <div id="sync-indicator" style="display:none;align-items:center;gap:5px;font-size:11px;color:var(--muted);margin-left:auto;margin-right:12px;white-space:nowrap">
+    <div id="sync-indicator" onclick="forceSyncNow()" title="Clique para sincronizar agora" style="display:none;align-items:center;gap:5px;font-size:11px;color:var(--muted);margin-left:auto;margin-right:12px;white-space:nowrap;cursor:pointer;padding:4px 8px;border-radius:var(--r);transition:background .15s" onmouseenter="this.style.background='var(--paper)'" onmouseleave="this.style.background='transparent'">
       <span id="sync-dot" style="width:6px;height:6px;border-radius:50%;background:var(--muted2);display:inline-block;flex-shrink:0"></span>
       <span id="sync-label">—</span>
     </div>
@@ -1089,6 +1089,20 @@ async function supaLoadData() {
 }
 
 let _syncLastTime='', _syncCountdown=60, _syncTimer=null;
+
+function forceSyncNow(){
+  const lbl=document.getElementById('sync-label');
+  const dot=document.getElementById('sync-dot');
+  if(dot) dot.style.background='var(--gold-lt)';
+  if(lbl) lbl.textContent='Sincronizando...';
+  supaLoadData().then(()=>{
+    _syncLastTime=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    _syncCountdown=60;
+    if(dot){ dot.style.background='var(--sage-lt)'; setTimeout(()=>dot.style.background='var(--muted2)',2000); }
+    if(lbl) lbl.textContent='Atualizado '+_syncLastTime+' · próx. 1:00';
+    navigate(curView, curInqId);
+  });
+}
 
 function _syncTick(){
   const lbl=document.getElementById('sync-label');
