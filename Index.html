@@ -2009,6 +2009,11 @@ function rGeral(inq,p){
       <div class="field"><div class="fl">Data do Fato</div>${fv(inq.data_fato?new Date(inq.data_fato+'T00:00').toLocaleDateString('pt-BR'):'')}</div>
       <div class="field"><div class="fl">Data de Abertura</div>${fv(inq.data_abertura?new Date(inq.data_abertura+'T00:00').toLocaleDateString('pt-BR'):'')}</div>
     </div>
+    ${(inq.uf||inq.cidade||inq.comarca)?`<div class="field-row3">
+      <div class="field"><div class="fl">Estado (UF)</div>${fv(inq.uf)}</div>
+      <div class="field"><div class="fl">Cidade</div>${fv(inq.cidade)}</div>
+      <div class="field"><div class="fl">Comarca / Vara</div>${fv(inq.comarca)}</div>
+    </div>`:''}
     ${inq.observacoes?`<div class="field"><div class="fl">Observações Gerais</div>${fv(inq.observacoes)}</div>`:''}
 
     <!-- ── etiquetas/tags ── -->
@@ -2968,6 +2973,17 @@ function openModalInq(id=null){
       <div class="fg"><label>Data de Abertura</label><input id="f-dab" type="date" value="${inq.data_abertura||''}"></div>
       <div class="fg"><label>Observações</label><input id="f-obs" value="${(inq.observacoes||'').replace(/"/g,'&quot;')}" placeholder="Observações gerais"></div>
     </div>
+    <div class="frow">
+      <div class="fg">
+        <label>Estado (UF)</label>
+        <select id="f-uf">
+          <option value="">— Selecione —</option>
+          ${['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'].map(uf=>`<option value="${uf}" ${(inq.uf||'')=== uf?'selected':''}>${uf}</option>`).join('')}
+        </select>
+      </div>
+      <div class="fg"><label>Cidade</label><input id="f-cid" value="${inq.cidade||''}" placeholder="Ex: São Paulo"></div>
+      <div class="fg"><label>Comarca / Vara</label><input id="f-com" value="${inq.comarca||''}" placeholder="Ex: 2ª Vara Criminal"></div>
+    </div>
     <div class="fg"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;text-transform:none;font-weight:400;font-size:11px"><input type="checkbox" id="f-red" ${inq.reducao_idade?'checked':''}> Redução por idade (art. 115 CP) — prazo pela metade</label></div>
 
     <!-- Partes -->
@@ -3128,7 +3144,7 @@ function saveInquerito(){
   if(!nip||!cli){alert('Preencha o Nº do IP e o cliente.');return;}
   const inqs=DB.get('inqueritos');
   const inqId=editId||DB.id();
-  const obj={id:inqId,numero_ip:nip,numero_bo:document.getElementById('f-nbo').value,numero_processo:document.getElementById('f-npc').value,cliente:cli,status:document.getElementById('f-sta').value,papel_cliente:document.getElementById('f-pap').value,crime:document.getElementById('f-cri').value==='__novo__'?'':document.getElementById('f-cri').value,crime_pena:document.getElementById('f-pen')?.value||'',fase:document.getElementById('f-fas').value,delegacia_id:document.getElementById('f-del').value==='__novo__'?'':document.getElementById('f-del').value,data_fato:document.getElementById('f-dfa').value,data_abertura:document.getElementById('f-dab').value,reducao_idade:document.getElementById('f-red').checked,observacoes:document.getElementById('f-obs')?.value||''};
+  const obj={id:inqId,numero_ip:nip,numero_bo:document.getElementById('f-nbo').value,numero_processo:document.getElementById('f-npc').value,cliente:cli,status:document.getElementById('f-sta').value,papel_cliente:document.getElementById('f-pap').value,crime:document.getElementById('f-cri').value==='__novo__'?'':document.getElementById('f-cri').value,crime_pena:document.getElementById('f-pen')?.value||'',fase:document.getElementById('f-fas').value,delegacia_id:document.getElementById('f-del').value==='__novo__'?'':document.getElementById('f-del').value,data_fato:document.getElementById('f-dfa').value,data_abertura:document.getElementById('f-dab').value,reducao_idade:document.getElementById('f-red').checked,observacoes:document.getElementById('f-obs')?.value||'',uf:document.getElementById('f-uf')?.value||'',cidade:document.getElementById('f-cid')?.value||'',comarca:document.getElementById('f-com')?.value||''};
   if(editId){const idx=inqs.findIndex(i=>i.id===editId);inqs[idx]={...inqs[idx],...obj};}else inqs.push(obj);
   DB.set('inqueritos',inqs);
   // salva partes
@@ -4341,6 +4357,9 @@ function removeTag(inqId, val){
 // ═══════════════════════════════════════════════════════
 // TAREFAS
 // ═══════════════════════════════════════════════════════
+const _PRIO_CFG={baixa:{label:'Baixa',cor:'#4a8a62',bg:'#edf7f1'},normal:{label:'Normal',cor:'#3a6ea5',bg:'#eef3fb'},alta:{label:'Alta',cor:'#c9a84c',bg:'#fdf8ec'},urgente:{label:'Urgente',cor:'#c94c4c',bg:'#fdf0f0'}};
+function _prioPill(p){const c=_PRIO_CFG[p||'normal']||_PRIO_CFG.normal;return `<span style="padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;color:${c.cor};background:${c.bg};border:1px solid ${c.cor}44">${c.label}</span>`;}
+
 function _renderTaskCard(t, opts={}){
   const hoje=new Date().toISOString().slice(0,10);
   const venc=t.prazo&&t.prazo<hoje&&!t.concluida;
@@ -4350,7 +4369,10 @@ function _renderTaskCard(t, opts={}){
     <div style="display:flex;align-items:flex-start;gap:10px">
       <div class="task-check ${t.concluida?'done':''}" style="margin-top:2px;flex-shrink:0" onclick="toggleTarefa('${t.id}')"></div>
       <div style="flex:1;min-width:0;cursor:pointer" onclick="toggleTaskObs('obs-${t.id}')">
-        <div class="task-title ${t.concluida?'done':''}" style="font-size:13px;font-weight:600">${t.titulo}</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="task-title ${t.concluida?'done':''}" style="font-size:13px;font-weight:600">${t.titulo}</div>
+          ${!t.concluida?_prioPill(t.prioridade):''}
+        </div>
         <div class="task-meta" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:3px">
           ${showInq&&inq?`<span style="color:var(--navy-lt);font-weight:500;cursor:pointer" onclick="event.stopPropagation();navigate('ficha','${inq.id}')">${inq.numero_ip||'S/N'} · ${inq.cliente}</span>`:''}
           ${t.responsavel?`<span ${showInq&&inq?'':''}>${t.responsavel}</span>`:''}
@@ -4402,8 +4424,26 @@ function _tarefaModalBody(t={}){
          style="margin-top:6px;display:${!users.find(u=>u.nome===t.responsavel||u.email===t.responsavel)&&t.responsavel?'block':'none'};width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:var(--r);font-size:13px;box-sizing:border-box;outline:none;font-family:'Source Sans 3',sans-serif"
          oninput="">`
     : `<input id="tf-res" placeholder="Ex: Dr. Arthur" value="${t.responsavel||''}" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:var(--r);font-size:13px;box-sizing:border-box;outline:none;font-family:'Source Sans 3',sans-serif">`;
+  const PRIOS=[
+    {v:'baixa',  label:'Baixa',  cor:'#4a8a62', bg:'#edf7f1'},
+    {v:'normal', label:'Normal', cor:'#3a6ea5', bg:'#eef3fb'},
+    {v:'alta',   label:'Alta',   cor:'#c9a84c', bg:'#fdf8ec'},
+    {v:'urgente',label:'Urgente',cor:'#c94c4c', bg:'#fdf0f0'},
+  ];
+  const curPrio=t.prioridade||'normal';
+  const prioHtml=PRIOS.map(p=>`
+    <label style="cursor:pointer;display:flex;align-items:center;gap:5px">
+      <input type="radio" name="tf-prio" value="${p.v}" ${curPrio===p.v?'checked':''} style="display:none" onchange="document.querySelectorAll('.prio-pill').forEach(el=>{el.style.background=el.dataset.bg+'33';el.style.color=el.dataset.cor;el.style.fontWeight='400';el.style.border='1px solid '+el.dataset.cor+'66'});this.closest('label').querySelector('.prio-pill').style.background=this.closest('label').querySelector('.prio-pill').dataset.bg;this.closest('label').querySelector('.prio-pill').style.fontWeight='700';this.closest('label').querySelector('.prio-pill').style.border='2px solid '+this.closest('label').querySelector('.prio-pill').dataset.cor">
+      <span class="prio-pill" data-cor="${p.cor}" data-bg="${p.bg}"
+        style="padding:4px 12px;border-radius:20px;font-size:12px;font-weight:${curPrio===p.v?'700':'400'};color:${p.cor};background:${curPrio===p.v?p.bg:p.bg+'33'};border:${curPrio===p.v?'2px':'1px'} solid ${p.cor}${curPrio===p.v?'':'66'};transition:all .15s">
+        ${p.label}
+      </span>
+    </label>`).join('');
   return `<div style="padding:16px 22px;display:flex;flex-direction:column;gap:14px">
     <div class="fg"><label>Título *</label><input id="tf-tit" placeholder="Ex: Solicitar laudos periciais" value="${(t.titulo||'').replace(/"/g,'&quot;')}"></div>
+    <div class="fg"><label>Prioridade</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">${prioHtml}</div>
+    </div>
     <div class="frow" style="align-items:flex-start">
       <div class="fg"><label>Responsável</label>${resField}</div>
       <div class="fg"><label>Prazo</label><input id="tf-pra" type="date" value="${t.prazo||hoje}"></div>
@@ -4444,7 +4484,8 @@ function saveTarefa(inqId){
   const tit=document.getElementById('tf-tit').value.trim();
   if(!tit){alert('Informe o título.');return;}
   const ts=DB.get('tarefas');
-  ts.push({id:DB.id(),inquerito_id:inqId,titulo:tit,responsavel:_tarefaResValue(),prazo:document.getElementById('tf-pra').value,obs:document.getElementById('tf-obs')?.value||'',concluida:false,created_at:new Date().toISOString()});
+  const prioSel=document.querySelector('input[name="tf-prio"]:checked');
+  ts.push({id:DB.id(),inquerito_id:inqId,titulo:tit,responsavel:_tarefaResValue(),prazo:document.getElementById('tf-pra').value,obs:document.getElementById('tf-obs')?.value||'',prioridade:prioSel?.value||'normal',concluida:false,created_at:new Date().toISOString()});
   DB.set('tarefas',ts);
   logAtividade('criou tarefa','"'+tit+'"');
   closeModal('modal-generic');
@@ -4592,10 +4633,12 @@ function saveEditTarefa(id){
   const ts=DB.get('tarefas');
   const i=ts.findIndex(x=>x.id===id);
   if(i<0) return;
+  const prioSelE=document.querySelector('input[name="tf-prio"]:checked');
   ts[i].titulo=tit;
   ts[i].responsavel=_tarefaResValue();
   ts[i].prazo=document.getElementById('tf-pra').value;
   ts[i].obs=document.getElementById('tf-obs')?.value||'';
+  ts[i].prioridade=prioSelE?.value||ts[i].prioridade||'normal';
   DB.set('tarefas',ts);
   logAtividade('editou tarefa','"'+tit+'"');
   closeModal('modal-generic');
