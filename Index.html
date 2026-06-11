@@ -1062,6 +1062,9 @@ async function supaLoadData() {
   if (data && data.data) {
     _cache = data.data;
   }
+  // carrega lista de usuários para dropdown de responsável
+  const { data: profs } = await _supa.from('profiles').select('id,nome,email,role').eq('status','ativo').order('nome');
+  if (profs) _cache['_profiles'] = profs;
   const hora=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   _syncUI('loaded', hora);
 }
@@ -4226,61 +4229,114 @@ function removeTag(inqId, val){
 // ═══════════════════════════════════════════════════════
 // TAREFAS
 // ═══════════════════════════════════════════════════════
+function _renderTaskCard(t, opts={}){
+  const hoje=new Date().toISOString().slice(0,10);
+  const venc=t.prazo&&t.prazo<hoje&&!t.concluida;
+  const {showInq=false}=opts;
+  const inq=showInq?DB.get('inqueritos').find(i=>i.id===t.inquerito_id):null;
+  return `<div class="task-item" style="flex-direction:column;align-items:stretch;gap:0;padding:12px 16px">
+    <div style="display:flex;align-items:flex-start;gap:10px">
+      <div class="task-check ${t.concluida?'done':''}" style="margin-top:2px;flex-shrink:0" onclick="toggleTarefa('${t.id}')"></div>
+      <div style="flex:1;min-width:0;cursor:pointer" onclick="toggleTaskObs('obs-${t.id}')">
+        <div class="task-title ${t.concluida?'done':''}" style="font-size:13px;font-weight:600">${t.titulo}</div>
+        <div class="task-meta" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:3px">
+          ${showInq&&inq?`<span style="color:var(--navy-lt);font-weight:500;cursor:pointer" onclick="event.stopPropagation();navigate('ficha','${inq.id}')">${inq.numero_ip||'S/N'} · ${inq.cliente}</span>`:''}
+          ${t.responsavel?`<span ${showInq&&inq?'':''}>${t.responsavel}</span>`:''}
+          ${t.prazo?`<span class="${venc?'venc':''}">${venc?'⚠ Venceu ':'Prazo: '}${new Date(t.prazo+'T00:00').toLocaleDateString('pt-BR')}</span>`:''}
+          ${t.obs?`<span style="color:var(--navy-lt)">▸ ver obs.</span>`:''}
+        </div>
+      </div>
+      <div style="display:flex;gap:5px;flex-shrink:0">
+        <button class="btn btn-secondary btn-xs" onclick="editTarefa('${t.id}')">Editar</button>
+        <button class="btn btn-danger btn-xs" onclick="delTarefa('${t.id}')">×</button>
+      </div>
+    </div>
+    ${t.obs?`<div id="obs-${t.id}" style="display:none;margin:10px 0 0 30px;padding:10px 12px;background:var(--paper);border-left:3px solid var(--navy-lt);border-radius:0 var(--r) var(--r) 0;font-size:12px;color:var(--ink2);line-height:1.5;white-space:pre-wrap">${t.obs}</div>`:''}
+  </div>`;
+}
+
+function toggleTaskObs(id){
+  const el=document.getElementById(id);
+  if(el) el.style.display=el.style.display==='none'?'block':'none';
+}
+
 function rTarefas(inq){
   const tarefas=DB.get('tarefas').filter(t=>t.inquerito_id===inq.id);
   const pendentes=tarefas.filter(t=>!t.concluida);
   const concluidas=tarefas.filter(t=>t.concluida);
-  const hoje=new Date().toISOString().slice(0,10);
-
-  const renderTask=(t)=>{
-    const venc=t.prazo&&t.prazo<hoje&&!t.concluida;
-    return `<div class="task-item">
-      <div class="task-check ${t.concluida?'done':''}" onclick="toggleTarefa('${t.id}')"></div>
-      <div style="flex:1">
-        <div class="task-title ${t.concluida?'done':''}">${t.titulo}</div>
-        <div class="task-meta">
-          ${t.responsavel?`<span>${t.responsavel}</span>`:''}
-          ${t.prazo?`${t.responsavel?' · ':''}<span class="${venc?'venc':''}">${venc?'Venceu ':'Prazo: '}${new Date(t.prazo+'T00:00').toLocaleDateString('pt-BR')}</span>`:''}
-        </div>
-      </div>
-      <button class="btn btn-danger btn-xs" onclick="delTarefa('${t.id}')" style="opacity:.4;transition:opacity .15s" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.4">×</button>
-    </div>`;
-  };
-
   return `<div class="sec-hd"><div class="sec-title">Tarefas</div>
     <button class="btn btn-primary btn-sm" onclick="openModalTarefa('${inq.id}')">+ Nova Tarefa</button></div>
     ${pendentes.length===0&&concluidas.length===0?'<div style="color:var(--muted);font-size:13px">Nenhuma tarefa cadastrada.</div>':''}
-    ${pendentes.length?`<div class="card" style="padding:0 16px">${pendentes.map(renderTask).join('')}</div>`:''}
+    ${pendentes.length?`<div class="card" style="padding:0">${pendentes.map(t=>_renderTaskCard(t)).join('')}</div>`:''}
     ${concluidas.length?`<div style="margin-top:20px">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:10px">Concluídas (${concluidas.length})</div>
-      <div class="card" style="padding:0 16px">${concluidas.map(renderTask).join('')}</div>
+      <div class="card" style="padding:0">${concluidas.map(t=>_renderTaskCard(t)).join('')}</div>
     </div>`:''}`;
 }
 
-function openModalTarefa(inqId){
+function _tarefaModalBody(t={}){
   const hoje=new Date().toISOString().slice(0,10);
-  document.getElementById('mg-title').textContent='Nova Tarefa';
-  document.getElementById('mg-body').innerHTML=`<div style="padding:16px 22px;display:flex;flex-direction:column;gap:12px">
-    <div class="fg"><label>Título *</label><input id="tf-tit" placeholder="Ex: Solicitar laudos periciais"></div>
-    <div class="frow">
-      <div class="fg"><label>Responsável</label><input id="tf-res" placeholder="Ex: Dr. Arthur"></div>
-      <div class="fg"><label>Prazo</label><input id="tf-pra" type="date" value="${hoje}"></div>
+  // usuários do sistema (profiles carregados no cache ou fallback)
+  const users=DB.get('_profiles')||[];
+  const resOpts=users.length
+    ? users.map(u=>`<option value="${u.nome||u.email}" ${(t.responsavel===u.nome||t.responsavel===u.email)?'selected':''}>${u.nome||u.email}</option>`).join('')
+    : '';
+  const resField=users.length
+    ? `<select id="tf-res" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:var(--r);font-size:13px;font-family:'Source Sans 3',sans-serif;background:var(--paper);outline:none">
+        <option value="">Selecione o responsável</option>${resOpts}
+        <option value="__outro__" ${!users.find(u=>u.nome===t.responsavel||u.email===t.responsavel)&&t.responsavel?'selected':''}>Outro…</option>
+       </select>
+       <input id="tf-res-outro" placeholder="Nome do responsável" value="${!users.find(u=>u.nome===t.responsavel||u.email===t.responsavel)&&t.responsavel?t.responsavel:''}"
+         style="margin-top:6px;display:${!users.find(u=>u.nome===t.responsavel||u.email===t.responsavel)&&t.responsavel?'block':'none'};width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:var(--r);font-size:13px;box-sizing:border-box;outline:none;font-family:'Source Sans 3',sans-serif"
+         oninput="">`
+    : `<input id="tf-res" placeholder="Ex: Dr. Arthur" value="${t.responsavel||''}" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:var(--r);font-size:13px;box-sizing:border-box;outline:none;font-family:'Source Sans 3',sans-serif">`;
+  return `<div style="padding:16px 22px;display:flex;flex-direction:column;gap:14px">
+    <div class="fg"><label>Título *</label><input id="tf-tit" placeholder="Ex: Solicitar laudos periciais" value="${(t.titulo||'').replace(/"/g,'&quot;')}"></div>
+    <div class="frow" style="align-items:flex-start">
+      <div class="fg"><label>Responsável</label>${resField}</div>
+      <div class="fg"><label>Prazo</label><input id="tf-pra" type="date" value="${t.prazo||hoje}"></div>
     </div>
+    <div class="fg"><label>Observações</label><textarea id="tf-obs" placeholder="Detalhes, instruções ou lembretes…" style="min-height:80px;resize:vertical">${t.obs||''}</textarea></div>
   </div>`;
+}
+
+function _tarefaResValue(){
+  const sel=document.getElementById('tf-res');
+  if(!sel) return '';
+  if(sel.tagName==='SELECT'){
+    const v=sel.value;
+    if(v==='__outro__') return document.getElementById('tf-res-outro')?.value||'';
+    return v;
+  }
+  return sel.value;
+}
+
+function openModalTarefa(inqId){
+  document.getElementById('mg-title').textContent='Nova Tarefa';
+  document.getElementById('mg-body').innerHTML=_tarefaModalBody();
   document.getElementById('mg-ft').innerHTML=`
     <button class="btn btn-secondary" onclick="closeModal('modal-generic')">Cancelar</button>
     <button class="btn btn-primary" onclick="saveTarefa('${inqId}')">Salvar</button>`;
   openModal('modal-generic');
+  // mostrar/ocultar campo "Outro"
+  setTimeout(()=>{
+    const sel=document.getElementById('tf-res');
+    if(sel&&sel.tagName==='SELECT') sel.addEventListener('change',()=>{
+      const o=document.getElementById('tf-res-outro');
+      if(o) o.style.display=sel.value==='__outro__'?'block':'none';
+    });
+  },50);
 }
 
 function saveTarefa(inqId){
   const tit=document.getElementById('tf-tit').value.trim();
   if(!tit){alert('Informe o título.');return;}
   const ts=DB.get('tarefas');
-  ts.push({id:DB.id(),inquerito_id:inqId,titulo:tit,responsavel:document.getElementById('tf-res').value,prazo:document.getElementById('tf-pra').value,concluida:false,created_at:new Date().toISOString()});
+  ts.push({id:DB.id(),inquerito_id:inqId,titulo:tit,responsavel:_tarefaResValue(),prazo:document.getElementById('tf-pra').value,obs:document.getElementById('tf-obs')?.value||'',concluida:false,created_at:new Date().toISOString()});
   DB.set('tarefas',ts);
   logAtividade('criou tarefa','"'+tit+'"');
-  closeModal('modal-generic');switchTab(2);
+  closeModal('modal-generic');
+  if(curView==='ficha') switchTab(2); else navigate('tarefas');
 }
 
 function toggleTarefa(id){
@@ -4368,25 +4424,7 @@ function renderTarefasPage(){
   const pendentes=todas.filter(t=>!t.concluida).sort((a,b)=>(a.prazo||'9')>(b.prazo||'9')?1:-1);
   const concluidas=todas.filter(t=>t.concluida).sort((a,b)=>b.created_at>a.created_at?1:-1);
 
-  const renderT=(t,showConc=false)=>{
-    const inq=inqs.find(i=>i.id===t.inquerito_id);
-    const venc=t.prazo&&t.prazo<hojeStr&&!t.concluida;
-    return `<div class="task-item">
-      <div class="task-check ${t.concluida?'done':''}" onclick="toggleTarefa('${t.id}');navigate('tarefas')"></div>
-      <div style="flex:1;min-width:0">
-        <div class="task-title ${t.concluida?'done':''}">${t.titulo}</div>
-        <div class="task-meta" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:3px">
-          ${inq?`<span style="color:var(--navy-lt);font-weight:500;cursor:pointer" onclick="navigate('ficha','${inq.id}')">${inq.numero_ip||'S/N'} · ${inq.cliente}</span>`:''}
-          ${t.responsavel?`<span>· ${t.responsavel}</span>`:''}
-          ${t.prazo?`<span class="${venc?'venc':''}">${venc?'⚠ Venceu ':'Prazo: '}${new Date(t.prazo+'T00:00').toLocaleDateString('pt-BR')}</span>`:''}
-        </div>
-      </div>
-      <div style="display:flex;gap:6px;flex-shrink:0">
-        <button class="btn btn-secondary btn-xs" onclick="editTarefa('${t.id}')">Editar</button>
-        <button class="btn btn-danger btn-xs" onclick="delTarefaPage('${t.id}')">Excluir</button>
-      </div>
-    </div>`;
-  };
+  const renderT=(t)=>_renderTaskCard(t,{showInq:true});
 
   return `
   <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
@@ -4422,17 +4460,18 @@ function editTarefa(id){
   const t=ts.find(x=>x.id===id);
   if(!t) return;
   document.getElementById('mg-title').textContent='Editar Tarefa';
-  document.getElementById('mg-body').innerHTML=`<div style="padding:16px 22px;display:flex;flex-direction:column;gap:12px">
-    <div class="fg"><label>Título *</label><input id="tf-tit" value="${(t.titulo||'').replace(/"/g,'&quot;')}"></div>
-    <div class="frow">
-      <div class="fg"><label>Responsável</label><input id="tf-res" value="${t.responsavel||''}"></div>
-      <div class="fg"><label>Prazo</label><input id="tf-pra" type="date" value="${t.prazo||''}"></div>
-    </div>
-  </div>`;
+  document.getElementById('mg-body').innerHTML=_tarefaModalBody(t);
   document.getElementById('mg-ft').innerHTML=`
     <button class="btn btn-secondary" onclick="closeModal('modal-generic')">Cancelar</button>
     <button class="btn btn-primary" onclick="saveEditTarefa('${id}')">Salvar</button>`;
   openModal('modal-generic');
+  setTimeout(()=>{
+    const sel=document.getElementById('tf-res');
+    if(sel&&sel.tagName==='SELECT') sel.addEventListener('change',()=>{
+      const o=document.getElementById('tf-res-outro');
+      if(o) o.style.display=sel.value==='__outro__'?'block':'none';
+    });
+  },50);
 }
 
 function saveEditTarefa(id){
@@ -4442,13 +4481,14 @@ function saveEditTarefa(id){
   const i=ts.findIndex(x=>x.id===id);
   if(i<0) return;
   ts[i].titulo=tit;
-  ts[i].responsavel=document.getElementById('tf-res').value;
+  ts[i].responsavel=_tarefaResValue();
   ts[i].prazo=document.getElementById('tf-pra').value;
+  ts[i].obs=document.getElementById('tf-obs')?.value||'';
   DB.set('tarefas',ts);
   logAtividade('editou tarefa','"'+tit+'"');
   closeModal('modal-generic');
   if(curView==='tarefas') navigate('tarefas');
-  else switchTab(2);
+  else if(curView==='ficha') switchTab(2);
 }
 
 function delTarefaPage(id){
