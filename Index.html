@@ -1543,7 +1543,7 @@ function renderBI(){
   const hoje=new Date();
   let prescOk=0,prescWarn=0,prescCrit=0,prescExp=0,prescNA=0;
   inqs.forEach(inq=>{
-    const p=calcPrescricao(inq);
+    const p=calcPresc(inq);
     if(!p||p.imprescritivel){prescNA++;return;}
     if(p.nivel==='ok') prescOk++;
     else if(p.nivel==='warn') prescWarn++;
