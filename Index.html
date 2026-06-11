@@ -859,6 +859,7 @@ let _supa = null;
 let _supaUser = null;
 let _cache = {};
 let _savePending = false;
+let _pendingProfile = null; // usado ao criar usuário via painel admin
 
 function initSupabase() {
   if (!supabase || SUPA_URL === 'https://SEU_PROJETO.supabase.co') return null;
@@ -1000,11 +1001,14 @@ async function onLogin(user) {
   // Carrega ou cria perfil
   let { data: prof } = await _supa.from('profiles').select('*').eq('id', user.id).single();
   if (!prof) {
-    // Cria perfil se não existe (primeiro login)
     const isFirstAdmin = user.email === 'arthur.rodrigues@mld.adv.br';
+    const pending = _pendingProfile;
+    _pendingProfile = null;
     await _supa.from('profiles').insert({
       id: user.id, email: user.email,
-      role: isFirstAdmin ? 'admin' : 'advogado', status: 'ativo'
+      nome: pending?.nome || null,
+      role: pending?.role || (isFirstAdmin ? 'admin' : 'advogado'),
+      status: 'ativo'
     });
     ({ data: prof } = await _supa.from('profiles').select('*').eq('id', user.id).single());
   }
@@ -3622,6 +3626,7 @@ async function adminCreateUser() {
   if (!email || !pass) { err.textContent = 'Preencha e-mail e senha.'; return; }
   if (pass.length < 6) { err.textContent = 'Senha mínima de 6 caracteres.'; return; }
 
+  _pendingProfile = { nome, role };
   const { data, error } = await _supa.auth.signUp({ email, password: pass });
   if (error) { err.textContent = error.message; return; }
 
