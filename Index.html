@@ -1655,7 +1655,6 @@ function renderFicha(){
         ${p&&p.nivel==='prescrito'?'<span class="badge badge-crimson">PRESCRITO</span>':''}
       </div>
       <div style="font-size:13px;color:var(--muted);margin-top:3px">${inq.cliente||''} · ${inq.crime||inq.natureza||''}</div>
-      ${renderTagsEditor(inq.id)}
     </div>
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       ${pizzaHeader}
@@ -1829,6 +1828,17 @@ function rGeral(inq,p){
       <div class="field"><div class="fl">Data de Abertura</div>${fv(inq.data_abertura?new Date(inq.data_abertura+'T00:00').toLocaleDateString('pt-BR'):'')}</div>
     </div>
     ${inq.observacoes?`<div class="field"><div class="fl">Observações Gerais</div>${fv(inq.observacoes)}</div>`:''}
+
+    <!-- ── etiquetas/tags ── -->
+    <div class="field">
+      <div class="fl">Etiquetas</div>
+      <div style="background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:8px 11px;min-height:36px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        ${(inq.tags||[]).map(t=>`<span class="tag-pill">${t}<span class="tag-x" onclick="removeTag('${inq.id}','${t}')">×</span></span>`).join('')}
+        <input id="tag-input-geral" placeholder="+ nova etiqueta, Enter para adicionar"
+          onkeydown="if(event.key==='Enter'){addTagGeral('${inq.id}',this.value);this.value='';event.preventDefault();}"
+          style="border:none;outline:none;font-size:12px;flex:1;min-width:180px;background:transparent;color:var(--ink2)">
+      </div>
+    </div>
 
     <!-- ── partes como campos ── -->
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px">
@@ -3389,7 +3399,7 @@ function saveContIPEdit(id){
 }
 function delDel(id){if(!confirm('Excluir?'))return;DB.set('delegacias',DB.get('delegacias').filter(d=>d.id!==id));render();}
 function delCont(id){if(!confirm('Excluir?'))return;DB.set('contatos',DB.get('contatos').filter(c=>c.id!==id));render();}
-function delDoc(id){DB.set('docs',DB.get('docs').filter(d=>d.id!==id));switchTab(2);}
+function delDoc(id){DB.set('docs',DB.get('docs').filter(d=>d.id!==id));switchTab(3);}
 function downloadDoc(id){
   const doc=DB.get('docs').find(d=>d.id===id);
   if(!doc||!doc.arquivo_data) return;
@@ -4035,8 +4045,11 @@ function addTag(inqId, val){
   if(i<0) return;
   const tags=inqs[i].tags||[];
   if(!tags.includes(val)){ tags.push(val); inqs[i].tags=tags; DB.set('inqueritos',inqs); logAtividade('adicionou tag','#'+val); }
-  const ed=document.getElementById('tags-editor');
-  if(ed) ed.outerHTML=renderTagsEditor(inqId);
+}
+
+function addTagGeral(inqId, val){
+  addTag(inqId, val);
+  switchTab(0);
 }
 
 function removeTag(inqId, val){
@@ -4045,8 +4058,8 @@ function removeTag(inqId, val){
   if(i<0) return;
   inqs[i].tags=(inqs[i].tags||[]).filter(t=>t!==val);
   DB.set('inqueritos',inqs);
-  const ed=document.getElementById('tags-editor');
-  if(ed) ed.outerHTML=renderTagsEditor(inqId);
+  logAtividade('removeu tag','#'+val);
+  switchTab(0);
 }
 
 // ═══════════════════════════════════════════════════════
