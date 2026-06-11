@@ -1010,6 +1010,7 @@ async function onLogin(user) {
       role: pending?.role || (isFirstAdmin ? 'admin' : 'advogado'),
       status: 'ativo'
     });
+    if (pending) return; // sessão do admin será restaurada em seguida
     ({ data: prof } = await _supa.from('profiles').select('*').eq('id', user.id).single());
   }
 
@@ -3626,18 +3627,20 @@ async function adminCreateUser() {
   if (!email || !pass) { err.textContent = 'Preencha e-mail e senha.'; return; }
   if (pass.length < 6) { err.textContent = 'Senha mínima de 6 caracteres.'; return; }
 
+  // Salva sessão do admin antes do signUp trocar de sessão
+  const { data: { session: adminSession } } = await _supa.auth.getSession();
+
   _pendingProfile = { nome, role };
   const { data, error } = await _supa.auth.signUp({ email, password: pass });
-  if (error) { err.textContent = error.message; return; }
+  if (error) { _pendingProfile = null; err.textContent = error.message; return; }
 
-  const uid = data?.user?.id;
-  if (!uid) { err.textContent = 'Usuário criado mas não foi possível salvar o perfil. Edite manualmente na lista.'; return; }
-
-  const { error: e2 } = await _supa.from('profiles').upsert(
-    { id: uid, email, nome: nome || null, role, status: 'ativo' },
-    { onConflict: 'id' }
-  );
-  if (e2) { err.textContent = 'Usuário criado mas erro ao salvar perfil: ' + e2.message; return; }
+  // Restaura sessão do admin
+  if (adminSession) {
+    await _supa.auth.setSession({
+      access_token: adminSession.access_token,
+      refresh_token: adminSession.refresh_token
+    });
+  }
 
   closeModal('modal-generic');
   navigate('admin');
