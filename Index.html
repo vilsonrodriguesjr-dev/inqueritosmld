@@ -797,6 +797,77 @@ body {
 .ev-field-val.comb { border-color: var(--gold-lt); background: var(--gold-bg); color: var(--gold); }
 .ev-field-val.next { border-color: var(--navy-lt); background: var(--navy-bg); color: var(--navy-lt); }
 
+/* ── BUSCA GLOBAL ─────────────────────────────────────── */
+#global-search-overlay {
+  display: none; position: fixed; inset: 0; z-index: 9990;
+  background: rgba(26,26,46,0.5); backdrop-filter: blur(2px);
+  align-items: flex-start; justify-content: center; padding-top: 80px;
+}
+#global-search-overlay.open { display: flex; }
+#global-search-box {
+  background: var(--white); border-radius: var(--r2); width: 600px; max-width: 92vw;
+  box-shadow: var(--shadow-lg); overflow: hidden;
+}
+#global-search-input {
+  width: 100%; padding: 16px 20px; font-size: 16px; border: none; outline: none;
+  border-bottom: 1px solid var(--line); font-family: 'Source Sans 3', sans-serif; color: var(--ink);
+}
+#global-search-results { max-height: 360px; overflow-y: auto; }
+.gs-item {
+  padding: 12px 20px; cursor: pointer; border-bottom: 1px solid var(--line2);
+  display: flex; align-items: center; gap: 12px;
+}
+.gs-item:hover { background: var(--paper); }
+.gs-item:last-child { border-bottom: none; }
+.gs-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px;
+  padding: 2px 7px; border-radius: 3px; background: var(--navy-bg); color: var(--navy); white-space: nowrap; }
+.gs-title { font-size: 13px; font-weight: 600; color: var(--ink); }
+.gs-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.gs-empty { padding: 32px 20px; text-align: center; color: var(--muted); font-size: 13px; }
+
+/* ── TAGS ─────────────────────────────────────────────── */
+.tag-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 20px;
+  background: var(--paper); color: var(--ink3); border: 1px solid var(--line);
+  cursor: default;
+}
+.tag-pill .tag-x { cursor: pointer; color: var(--muted); font-size: 12px; line-height: 1; }
+.tag-pill .tag-x:hover { color: var(--crimson); }
+
+/* ── TAREFAS ──────────────────────────────────────────── */
+.task-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 0; border-bottom: 1px solid var(--line2);
+}
+.task-item:last-child { border-bottom: none; }
+.task-check {
+  width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--muted2);
+  flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  margin-top: 1px; transition: all .15s;
+}
+.task-check.done { background: var(--sage-lt); border-color: var(--sage-lt); }
+.task-check.done::after { content: '✓'; color: white; font-size: 10px; font-weight: 700; }
+.task-title { font-size: 13px; color: var(--ink); flex: 1; line-height: 1.4; }
+.task-title.done { text-decoration: line-through; color: var(--muted); }
+.task-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.task-meta .venc { color: var(--crimson); font-weight: 600; }
+
+/* ── ATIVIDADES ───────────────────────────────────────── */
+.ativ-item {
+  display: flex; gap: 12px; padding: 12px 0;
+  border-bottom: 1px solid var(--line2);
+}
+.ativ-item:last-child { border-bottom: none; }
+.ativ-avatar {
+  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: white; background: var(--navy-lt);
+}
+.ativ-body { flex: 1; }
+.ativ-acao { font-size: 13px; color: var(--ink); line-height: 1.4; }
+.ativ-ts { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
 @media (max-width: 768px) {
   #sidebar { display: none; }
   .frow, .frow3 { grid-template-columns: 1fr; }
@@ -832,6 +903,7 @@ body {
     <div class="nav-item active" onclick="navigate('dashboard')"><span class="nav-icon">▪</span><span class="nav-label">Dashboard</span></div>
     <div class="nav-item" onclick="navigate('lista')"><span class="nav-icon">≡</span><span class="nav-label">Inquéritos</span></div>
     <div class="nav-item" onclick="navigate('agenda')"><span class="nav-icon">◷</span><span class="nav-label">Agenda / Prazos</span></div>
+    <div class="nav-item" onclick="navigate('atividades')"><span class="nav-icon">◈</span><span class="nav-label">Atividades</span></div>
     <div class="sb-section">Cadastros</div>
     <div class="nav-item" onclick="navigate('delegacias')"><span class="nav-icon">⊞</span><span class="nav-label">Delegacias</span></div>
     <div class="nav-item" onclick="navigate('contatos')"><span class="nav-icon">◉</span><span class="nav-label">Contatos Externos</span></div>
@@ -857,6 +929,7 @@ body {
       <span></span><span></span><span></span>
     </button>
     <div class="topbar-title" id="topbar-title">Dashboard</div>
+    <button onclick="abrirBuscaGlobal()" title="Busca global (Ctrl+K)" style="background:none;border:1px solid var(--line);border-radius:var(--r2);padding:5px 12px;font-size:12px;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:6px;margin-left:auto"><span>⌕</span><span>Buscar...</span><span style="font-size:10px;background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:1px 5px">Ctrl K</span></button>
     <div id="sync-indicator" style="display:none;align-items:center;gap:5px;font-size:11px;color:var(--muted);margin-left:auto;margin-right:12px;white-space:nowrap">
       <span id="sync-dot" style="width:6px;height:6px;border-radius:50%;background:var(--muted2);display:inline-block;flex-shrink:0"></span>
       <span id="sync-label">—</span>
@@ -864,6 +937,14 @@ body {
     <div class="topbar-actions" id="topbar-actions"></div>
   </header>
   <div class="content" id="content"></div>
+</div>
+
+<!-- BUSCA GLOBAL -->
+<div id="global-search-overlay" onclick="if(event.target===this)fecharBuscaGlobal()">
+  <div id="global-search-box">
+    <input id="global-search-input" placeholder="Buscar inquérito, cliente, crime, parte..." oninput="renderBuscaGlobal(this.value)" autocomplete="off">
+    <div id="global-search-results"><div class="gs-empty">Digite para buscar em todos os inquéritos</div></div>
+  </div>
 </div>
 
   <!-- PAINEL LATERAL DE DETALHE -->
@@ -1316,10 +1397,10 @@ let curView='dashboard', curInqId=null, curTab=0, editId=null;
 function navigate(view,id=null){
   curView=view;
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  const map={dashboard:0,lista:1,agenda:2,delegacias:4,contatos:5,crimes:6};
+  const map={dashboard:0,lista:1,agenda:2,atividades:3,delegacias:5,contatos:6,crimes:7};
   const items=document.querySelectorAll('.nav-item');
   if(map[view]!==undefined) items[map[view]]?.classList.add('active');
-  const titles={dashboard:'Dashboard',lista:'Inquéritos',ficha:'Ficha do Inquérito',agenda:'Agenda & Prazos',delegacias:'Delegacias & Órgãos',contatos:'Contatos Externos',crimes:'Tabela de Crimes'};
+  const titles={dashboard:'Dashboard',lista:'Inquéritos',ficha:'Ficha do Inquérito',agenda:'Agenda & Prazos',atividades:'Atividades',delegacias:'Delegacias & Órgãos',contatos:'Contatos Externos',crimes:'Tabela de Crimes'};
   document.getElementById('topbar-title').textContent=titles[view]||view;
   if(view==='ficha'&&id){curInqId=id;curTab=0;}
   render();
@@ -1333,6 +1414,7 @@ function render(){
     case 'lista':      act.innerHTML='<button class="btn btn-primary btn-sm" onclick="openModalInq()">+ Novo Inquérito</button>';cnt.innerHTML=renderLista();break;
     case 'ficha':      act.innerHTML=renderFichaAct();cnt.innerHTML=renderFicha();break;
     case 'agenda':     act.innerHTML='';cnt.innerHTML=renderAgenda();break;
+    case 'atividades': act.innerHTML='';cnt.innerHTML=renderAtividades();break;
     case 'delegacias': act.innerHTML='<button class="btn btn-primary btn-sm" onclick="openModalDel()">+ Nova Delegacia</button>';cnt.innerHTML=renderDels();break;
     case 'contatos':   act.innerHTML='<button class="btn btn-primary btn-sm" onclick="openModalCont()">+ Novo Contato</button>';cnt.innerHTML=renderConts();break;
     case 'crimes':     act.innerHTML='<button class="btn btn-primary btn-sm" onclick="openModalCrime()">+ Novo Crime</button>';cnt.innerHTML=renderCrimes();break;
@@ -1489,7 +1571,7 @@ function gerarLinhas(busca='',statusF='',alertaF=''){
       <td><strong style="font-weight:600">${i.numero_ip||'—'}</strong></td>
       <td style="color:var(--ink3)">${i.numero_bo||'—'}</td>
       <td style="color:var(--ink3)">${i.numero_processo||'—'}</td>
-      <td>${i.cliente||'—'}</td>
+      <td>${i.cliente||'—'}${(i.tags||[]).length?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:3px">${(i.tags||[]).map(t=>`<span style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;background:var(--violet-bg);color:var(--violet)">#${t}</span>`).join('')}</div>`:''}</td>
       <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink3)">${i.crime||i.natureza||'—'}</td>
       <td onclick="event.stopPropagation()">
         <select onchange="updateStatus('${i.id}',this.value)" class="inline-status-sel badge ${cfg.badge}" style="appearance:none;-webkit-appearance:none;cursor:pointer;border:none;outline:none;font-family:'Source Sans 3',sans-serif;font-size:11px;font-weight:600;letter-spacing:.3px;text-transform:uppercase;background:transparent;padding:2px 22px 2px 8px;border-radius:3px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238a8fa8'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 6px center">
@@ -1528,7 +1610,7 @@ function renderFicha(){
   if(!inq) return '<div class="empty"><p>Inquérito não encontrado.</p></div>';
   const cfg=STATUS_CFG[inq.status]||STATUS_CFG['Em apuração'];
   const p=calcPresc(inq);
-  const tabs=['Dados Gerais','Andamentos','Documentos','Linha do Tempo'];
+  const tabs=['Dados Gerais','Andamentos','Tarefas','Documentos','Linha do Tempo'];
 
   // ── pizza mini para o cabeçalho ──────────────────────
   let pizzaHeader='';
@@ -1573,6 +1655,7 @@ function renderFicha(){
         ${p&&p.nivel==='prescrito'?'<span class="badge badge-crimson">PRESCRITO</span>':''}
       </div>
       <div style="font-size:13px;color:var(--muted);margin-top:3px">${inq.cliente||''} · ${inq.crime||inq.natureza||''}</div>
+      ${renderTagsEditor(inq.id)}
     </div>
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       ${pizzaHeader}
@@ -1582,7 +1665,7 @@ function renderFicha(){
     </div>
   </div>
   <div class="tabs">${tabs.map((t,i)=>`<button class="tab-btn ${i===curTab?'active':''}" onclick="switchTab(${i})">${t}</button>`).join('')}</div>
-  <div id="tab-content">${[rGeral,rAnds,rDocs,rTimeline][curTab](inq,p)}</div>`;
+  <div id="tab-content">${[rGeral,rAnds,rTarefas,rDocs,rTimeline][curTab](inq,p)}</div>`;
 }
 
 function switchTab(n){
@@ -1590,7 +1673,7 @@ function switchTab(n){
   const inq=DB.get('inqueritos').find(i=>i.id===curInqId);
   const p=calcPresc(inq);
   document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',i===n));
-  document.getElementById('tab-content').innerHTML=[rGeral,rAnds,rDocs,rTimeline][n](inq,p);
+  document.getElementById('tab-content').innerHTML=[rGeral,rAnds,rTarefas,rDocs,rTimeline][n](inq,p);
 }
 
 // ── TAB 0: Dados Gerais (inclui prescrição, partes e autoridades)
@@ -2877,6 +2960,7 @@ function saveInquerito(){
     DB.set('docs',docs);
     _boArquivo=null; _boData=null;
   }
+  logAtividade(editId?'editou inquérito':'criou inquérito', cli);
   closeModal('modal-inquerito');
   if(editId&&curView==='ficha') render(); else navigate('ficha',obj.id);
 }
@@ -2906,7 +2990,7 @@ function saveAndamento(){
   if(!dt||!desc){alert('Preencha a data e a descrição.');return;}
   const ands=DB.get('andamentos');
   ands.push({id:DB.id(),inquerito_id:curInqId,data:dt,tipo:document.getElementById('a-tip').value,descricao:desc,combinado:document.getElementById('a-com').value,proximo_passo:document.getElementById('a-pro').value,prazo_proximo:document.getElementById('a-pra').value,responsavel:document.getElementById('a-res').value});
-  DB.set('andamentos',ands);closeModal('modal-andamento');switchTab(1);
+  DB.set('andamentos',ands);logAtividade('adicionou andamento',document.getElementById('a-tip').value);closeModal('modal-andamento');switchTab(1);
 }
 
 function openModalSusp(){
@@ -3101,11 +3185,11 @@ function saveDoc(){
     const reader=new FileReader();
     reader.onload=function(e){
       obj.arquivo_data=e.target.result;
-      docs.push(obj);DB.set('docs',docs);closeModal('modal-generic');switchTab(2);
+      docs.push(obj);DB.set('docs',docs);closeModal('modal-generic');switchTab(3);
     };
     reader.readAsDataURL(file);
   } else {
-    docs.push(obj);DB.set('docs',docs);closeModal('modal-generic');switchTab(2);
+    docs.push(obj);DB.set('docs',docs);closeModal('modal-generic');switchTab(3);
   }
 }
 
@@ -3124,8 +3208,8 @@ function updateStatus(id,st){
   }
   if(curView==='ficha') render();
 }
-function delInq(id){if(!confirm('Excluir este inquérito e todos os seus dados?'))return;['inqueritos','andamentos','partes','contatos_inq','interrupcoes','suspensoes','docs'].forEach(k=>{if(k==='inqueritos')DB.set(k,DB.get(k).filter(i=>i.id!==id));else DB.set(k,DB.get(k).filter(i=>i.inquerito_id!==id));});render();}
-function delAnd(id){if(!confirm('Remover este andamento?'))return;DB.set('andamentos',DB.get('andamentos').filter(a=>a.id!==id));if(curTab===1)switchTab(1);else if(curTab===3)switchTab(3);}
+function delInq(id){if(!confirm('Excluir este inquérito e todos os seus dados?'))return;const inq=DB.get('inqueritos').find(i=>i.id===id);['inqueritos','andamentos','partes','contatos_inq','interrupcoes','suspensoes','docs','tarefas'].forEach(k=>{if(k==='inqueritos')DB.set(k,DB.get(k).filter(i=>i.id!==id));else DB.set(k,DB.get(k).filter(i=>i.inquerito_id!==id));});logAtividade('excluiu inquérito',inq?.cliente||id);render();}
+function delAnd(id){if(!confirm('Remover este andamento?'))return;DB.set('andamentos',DB.get('andamentos').filter(a=>a.id!==id));if(curTab===1)switchTab(1);else if(curTab===4)switchTab(4);}
 function editarAnd(id){
   const a=DB.get('andamentos').find(x=>x.id===id);if(!a)return;
   editId=id;
@@ -3154,7 +3238,7 @@ function saveAndEdit(id){
   DB.set('andamentos',ands);
   // restaura botão original
   document.querySelector('#modal-andamento .modal-ft').innerHTML=`<button class="btn btn-secondary" onclick="closeModal('modal-andamento')">Cancelar</button><button class="btn btn-primary" onclick="saveAndamento()">Salvar</button>`;
-  closeModal('modal-andamento');if(curTab===1)switchTab(1);else if(curTab===3)switchTab(3);
+  closeModal('modal-andamento');if(curTab===1)switchTab(1);else if(curTab===4)switchTab(4);
 }
 function delParte(id){DB.set('partes',DB.get('partes').filter(p=>p.id!==id));switchTab(0);}
 
@@ -3890,6 +3974,206 @@ async function adminCreateUser() {
 
   closeModal('modal-generic');
   navigate('admin');
+}
+
+// ═══════════════════════════════════════════════════════
+// LOG DE ATIVIDADES
+// ═══════════════════════════════════════════════════════
+function logAtividade(acao, detalhe){
+  if(!_supaUser) return;
+  const nome=_userProfile?.nome||_userProfile?.email||'Usuário';
+  const ini=nome.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const ativs=DB.get('atividades');
+  ativs.unshift({id:DB.id(),user:nome,ini,acao,detalhe,ts:new Date().toISOString()});
+  DB.set('atividades', ativs.slice(0,300));
+}
+
+function renderAtividades(){
+  const ativs=DB.get('atividades');
+  if(!ativs.length) return '<div class="empty"><div class="empty-icon">◈</div><div>Nenhuma atividade registrada ainda.</div></div>';
+  const fmtTs=ts=>{
+    const d=new Date(ts), hoje=new Date();
+    const diff=Math.floor((hoje-d)/86400000);
+    const hora=d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    if(diff===0) return 'Hoje, '+hora;
+    if(diff===1) return 'Ontem, '+hora;
+    return d.toLocaleDateString('pt-BR')+' '+hora;
+  };
+  return `<div class="card" style="padding:0 20px">
+    ${ativs.map(a=>`<div class="ativ-item">
+      <div class="ativ-avatar">${a.ini||'?'}</div>
+      <div class="ativ-body">
+        <div class="ativ-acao"><strong>${a.user}</strong> ${a.acao}${a.detalhe?` <span style="color:var(--ink3)">${a.detalhe}</span>`:''}</div>
+        <div class="ativ-ts">${fmtTs(a.ts)}</div>
+      </div>
+    </div>`).join('')}
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════
+// TAGS
+// ═══════════════════════════════════════════════════════
+function renderTagsEditor(inqId){
+  const inqs=DB.get('inqueritos');
+  const inq=inqs.find(i=>i.id===inqId);
+  const tags=inq?.tags||[];
+  return `<div id="tags-editor" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px">
+    ${tags.map(t=>`<span class="tag-pill">${t}<span class="tag-x" onclick="removeTag('${inqId}','${t}')">×</span></span>`).join('')}
+    <input id="tag-input" placeholder="+ tag" onkeydown="if(event.key==='Enter'){addTag('${inqId}',this.value);this.value='';}"
+      style="border:none;outline:none;font-size:11px;width:60px;background:transparent;color:var(--ink3)" />
+  </div>`;
+}
+
+function addTag(inqId, val){
+  val=val.trim().toLowerCase();
+  if(!val) return;
+  const inqs=DB.get('inqueritos');
+  const i=inqs.findIndex(x=>x.id===inqId);
+  if(i<0) return;
+  const tags=inqs[i].tags||[];
+  if(!tags.includes(val)){ tags.push(val); inqs[i].tags=tags; DB.set('inqueritos',inqs); logAtividade('adicionou tag','#'+val); }
+  const ed=document.getElementById('tags-editor');
+  if(ed) ed.outerHTML=renderTagsEditor(inqId);
+}
+
+function removeTag(inqId, val){
+  const inqs=DB.get('inqueritos');
+  const i=inqs.findIndex(x=>x.id===inqId);
+  if(i<0) return;
+  inqs[i].tags=(inqs[i].tags||[]).filter(t=>t!==val);
+  DB.set('inqueritos',inqs);
+  const ed=document.getElementById('tags-editor');
+  if(ed) ed.outerHTML=renderTagsEditor(inqId);
+}
+
+// ═══════════════════════════════════════════════════════
+// TAREFAS
+// ═══════════════════════════════════════════════════════
+function rTarefas(inq){
+  const tarefas=DB.get('tarefas').filter(t=>t.inquerito_id===inq.id);
+  const pendentes=tarefas.filter(t=>!t.concluida);
+  const concluidas=tarefas.filter(t=>t.concluida);
+  const hoje=new Date().toISOString().slice(0,10);
+
+  const renderTask=(t)=>{
+    const venc=t.prazo&&t.prazo<hoje&&!t.concluida;
+    return `<div class="task-item">
+      <div class="task-check ${t.concluida?'done':''}" onclick="toggleTarefa('${t.id}')"></div>
+      <div style="flex:1">
+        <div class="task-title ${t.concluida?'done':''}">${t.titulo}</div>
+        <div class="task-meta">
+          ${t.responsavel?`<span>${t.responsavel}</span>`:''}
+          ${t.prazo?`${t.responsavel?' · ':''}<span class="${venc?'venc':''}">${venc?'Venceu ':'Prazo: '}${new Date(t.prazo+'T00:00').toLocaleDateString('pt-BR')}</span>`:''}
+        </div>
+      </div>
+      <button class="btn btn-danger btn-xs" onclick="delTarefa('${t.id}')" style="opacity:.4;transition:opacity .15s" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.4">×</button>
+    </div>`;
+  };
+
+  return `<div class="sec-hd"><div class="sec-title">Tarefas</div>
+    <button class="btn btn-primary btn-sm" onclick="openModalTarefa('${inq.id}')">+ Nova Tarefa</button></div>
+    ${pendentes.length===0&&concluidas.length===0?'<div style="color:var(--muted);font-size:13px">Nenhuma tarefa cadastrada.</div>':''}
+    ${pendentes.length?`<div class="card" style="padding:0 16px">${pendentes.map(renderTask).join('')}</div>`:''}
+    ${concluidas.length?`<div style="margin-top:20px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:10px">Concluídas (${concluidas.length})</div>
+      <div class="card" style="padding:0 16px">${concluidas.map(renderTask).join('')}</div>
+    </div>`:''}`;
+}
+
+function openModalTarefa(inqId){
+  const hoje=new Date().toISOString().slice(0,10);
+  document.getElementById('mg-title').textContent='Nova Tarefa';
+  document.getElementById('mg-body').innerHTML=`<div style="padding:16px 22px;display:flex;flex-direction:column;gap:12px">
+    <div class="fg"><label>Título *</label><input id="tf-tit" placeholder="Ex: Solicitar laudos periciais"></div>
+    <div class="frow">
+      <div class="fg"><label>Responsável</label><input id="tf-res" placeholder="Ex: Dr. Arthur"></div>
+      <div class="fg"><label>Prazo</label><input id="tf-pra" type="date" value="${hoje}"></div>
+    </div>
+  </div>`;
+  document.getElementById('mg-ft').innerHTML=`
+    <button class="btn btn-secondary" onclick="closeModal('modal-generic')">Cancelar</button>
+    <button class="btn btn-primary" onclick="saveTarefa('${inqId}')">Salvar</button>`;
+  openModal('modal-generic');
+}
+
+function saveTarefa(inqId){
+  const tit=document.getElementById('tf-tit').value.trim();
+  if(!tit){alert('Informe o título.');return;}
+  const ts=DB.get('tarefas');
+  ts.push({id:DB.id(),inquerito_id:inqId,titulo:tit,responsavel:document.getElementById('tf-res').value,prazo:document.getElementById('tf-pra').value,concluida:false,created_at:new Date().toISOString()});
+  DB.set('tarefas',ts);
+  logAtividade('criou tarefa','"'+tit+'"');
+  closeModal('modal-generic');switchTab(2);
+}
+
+function toggleTarefa(id){
+  const ts=DB.get('tarefas');
+  const i=ts.findIndex(t=>t.id===id);
+  if(i<0) return;
+  ts[i].concluida=!ts[i].concluida;
+  DB.set('tarefas',ts);
+  logAtividade(ts[i].concluida?'concluiu tarefa':'reabriu tarefa','"'+ts[i].titulo+'"');
+  switchTab(2);
+}
+
+function delTarefa(id){
+  const ts=DB.get('tarefas');
+  const t=ts.find(x=>x.id===id);
+  DB.set('tarefas',ts.filter(x=>x.id!==id));
+  if(t) logAtividade('removeu tarefa','"'+t.titulo+'"');
+  switchTab(2);
+}
+
+// ═══════════════════════════════════════════════════════
+// BUSCA GLOBAL
+// ═══════════════════════════════════════════════════════
+function abrirBuscaGlobal(){
+  document.getElementById('global-search-overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('global-search-input').focus(),50);
+}
+function fecharBuscaGlobal(){
+  document.getElementById('global-search-overlay').classList.remove('open');
+  document.getElementById('global-search-input').value='';
+  document.getElementById('global-search-results').innerHTML='<div class="gs-empty">Digite para buscar em todos os inquéritos</div>';
+}
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key==='k'){e.preventDefault();abrirBuscaGlobal();}
+  if(e.key==='Escape') fecharBuscaGlobal();
+});
+
+function renderBuscaGlobal(q){
+  const res=document.getElementById('global-search-results');
+  if(!q||q.length<2){res.innerHTML='<div class="gs-empty">Digite para buscar em todos os inquéritos</div>';return;}
+  const ql=q.toLowerCase();
+  const inqs=DB.get('inqueritos');
+  const partes=DB.get('partes');
+  const ands=DB.get('andamentos');
+  let hits=[];
+
+  inqs.forEach(i=>{
+    const score=[i.numero_ip,i.numero_bo,i.numero_processo,i.cliente,i.crime,i.status,(i.tags||[]).join(' ')].join(' ').toLowerCase();
+    if(score.includes(ql)) hits.push({tipo:'Inquérito',titulo:i.cliente||'—',sub:(i.numero_ip?'Nº '+i.numero_ip+' · ':'')+( i.crime||''),id:i.id});
+  });
+
+  partes.filter(p=>[p.nome,p.cpf,p.contato].join(' ').toLowerCase().includes(ql)).forEach(p=>{
+    const inq=inqs.find(i=>i.id===p.inquerito_id);
+    hits.push({tipo:'Parte',titulo:p.nome,sub:p.papel+(inq?' · '+inq.cliente:''),id:p.inquerito_id});
+  });
+
+  ands.filter(a=>[a.descricao,a.combinado,a.proximo_passo].join(' ').toLowerCase().includes(ql)).forEach(a=>{
+    const inq=inqs.find(i=>i.id===a.inquerito_id);
+    if(inq) hits.push({tipo:'Andamento',titulo:a.tipo||'Andamento',sub:a.descricao?.slice(0,60)+(a.descricao?.length>60?'…':''),id:a.inquerito_id});
+  });
+
+  // deduplica por id mantendo diversidade de tipo
+  const seen=new Set();
+  hits=hits.filter(h=>{const k=h.tipo+h.id;if(seen.has(k))return false;seen.add(k);return true;}).slice(0,12);
+
+  if(!hits.length){res.innerHTML='<div class="gs-empty">Nenhum resultado para "'+q+'"</div>';return;}
+  res.innerHTML=hits.map(h=>`<div class="gs-item" onclick="fecharBuscaGlobal();navigate('ficha','${h.id}')">
+    <span class="gs-badge">${h.tipo}</span>
+    <div><div class="gs-title">${h.titulo}</div>${h.sub?`<div class="gs-sub">${h.sub}</div>`:''}</div>
+  </div>`).join('');
 }
 
 // ═══════════════════════════════════════════════════════
