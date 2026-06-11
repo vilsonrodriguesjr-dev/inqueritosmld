@@ -1899,35 +1899,54 @@ function rAuts(inq){
 }
 
 // ── TAB 4: Andamentos
-let _andQ='', _andTipo='', _andDe='', _andAte='', _andOrd='desc';
-function setAndFilter(key,val){ if(key==='q')_andQ=val; else if(key==='tipo')_andTipo=val; else if(key==='de')_andDe=val; else if(key==='ate')_andAte=val; else if(key==='ord')_andOrd=val; switchTab(1); }
+let _andQ='', _andTipo='', _andPeriodo='', _andOrd='desc';
+function setAndTipo(v){ _andTipo=_andTipo===v?'':v; switchTab(1); }
+function setAndPeriodo(v){ _andPeriodo=_andPeriodo===v?'':v; switchTab(1); }
+function setAndOrd(v){ _andOrd=v; switchTab(1); }
+function setAndQ(v){ _andQ=v; switchTab(1); }
 
 function rAnds(inq){
+  const hoje=new Date();
   let ands=DB.get('andamentos').filter(a=>a.inquerito_id===inq.id);
   const tipos=[...new Set(ands.map(a=>a.tipo).filter(Boolean))].sort();
+
+  // filtro de período
+  function periodoFn(a){
+    if(!_andPeriodo) return true;
+    const d=new Date(a.data+'T00:00');
+    if(_andPeriodo==='mes')  return d.getMonth()===hoje.getMonth()&&d.getFullYear()===hoje.getFullYear();
+    if(_andPeriodo==='3m')   return (hoje-d)<=90*864e5;
+    if(_andPeriodo==='ano')  return d.getFullYear()===hoje.getFullYear();
+    return true;
+  }
+
   if(_andQ) ands=ands.filter(a=>[a.descricao,a.combinado,a.proximo_passo,a.responsavel,a.tipo].join(' ').toLowerCase().includes(_andQ.toLowerCase()));
   if(_andTipo) ands=ands.filter(a=>a.tipo===_andTipo);
-  if(_andDe) ands=ands.filter(a=>a.data>=_andDe);
-  if(_andAte) ands=ands.filter(a=>a.data<=_andAte);
+  ands=ands.filter(periodoFn);
   ands=ands.sort((a,b)=>_andOrd==='desc'?new Date(b.data)-new Date(a.data):new Date(a.data)-new Date(b.data));
-  const inpS='padding:5px 9px;border:1px solid var(--line);border-radius:var(--r);font-size:12px;outline:none;background:var(--white);color:var(--ink)';
-  const ativo=_andQ||_andTipo||_andDe||_andAte;
-  const filtros=`<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;padding:12px 14px;background:var(--paper);border:1px solid var(--line);border-radius:var(--r2)">
-    <input value="${_andQ}" oninput="setAndFilter('q',this.value)" placeholder="Buscar nos andamentos..." style="${inpS};flex:1;min-width:160px">
-    <select onchange="setAndFilter('tipo',this.value)" style="${inpS}">
-      <option value="">Todos os tipos</option>
-      ${tipos.map(t=>`<option value="${t}" ${_andTipo===t?'selected':''}>${t}</option>`).join('')}
-    </select>
-    <div style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--ink3)">
-      De <input type="date" value="${_andDe}" onchange="setAndFilter('de',this.value)" style="${inpS}">
-      até <input type="date" value="${_andAte}" onchange="setAndFilter('ate',this.value)" style="${inpS}">
+
+  const pill=(label,active,fn)=>`<button onclick="${fn}" style="padding:4px 12px;border-radius:20px;border:1px solid ${active?'var(--ink)':'var(--line)'};background:${active?'var(--ink)':'transparent'};color:${active?'var(--white)':'var(--ink3)'};font-size:12px;font-weight:${active?'600':'400'};cursor:pointer;white-space:nowrap;transition:all .15s">${label}</button>`;
+  const sep=`<span style="color:var(--line2);font-size:16px;font-weight:300;align-self:center">|</span>`;
+
+  const filtros=`
+  <div style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--line2)">
+      <input value="${_andQ}" oninput="setAndQ(this.value)" placeholder="Buscar..." style="padding:4px 10px;border:1px solid var(--line);border-radius:20px;font-size:12px;outline:none;width:160px;background:var(--white)">
+      ${sep}
+      <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)">Tipo</span>
+      ${pill('Todos',!_andTipo,"setAndTipo('')")}
+      ${tipos.map(t=>pill(t,_andTipo===t,`setAndTipo('${t}')`)).join('')}
+      ${sep}
+      <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)">Período</span>
+      ${pill('Todos',!_andPeriodo,"setAndPeriodo('')")}
+      ${pill('Este mês',_andPeriodo==='mes',"setAndPeriodo('mes')")}
+      ${pill('90 dias',_andPeriodo==='3m',"setAndPeriodo('3m')")}
+      ${pill('Este ano',_andPeriodo==='ano',"setAndPeriodo('ano')")}
+      ${sep}
+      ${pill('↓ Recente',_andOrd==='desc',"setAndOrd('desc')")}
+      ${pill('↑ Antigo',_andOrd==='asc',"setAndOrd('asc')")}
+      <span style="font-size:11px;color:var(--muted);margin-left:auto">${ands.length} registro${ands.length!==1?'s':''}</span>
     </div>
-    <select onchange="setAndFilter('ord',this.value)" style="${inpS}">
-      <option value="desc" ${_andOrd==='desc'?'selected':''}>Mais recente primeiro</option>
-      <option value="asc" ${_andOrd==='asc'?'selected':''}>Mais antigo primeiro</option>
-    </select>
-    ${ativo?`<button onclick="_andQ='';_andTipo='';_andDe='';_andAte='';switchTab(1)" style="padding:5px 10px;border:1px solid var(--line);border-radius:var(--r);background:var(--white);font-size:12px;cursor:pointer;color:var(--crimson)">✕ Limpar</button>`:''}
-    <span style="font-size:11px;color:var(--muted);white-space:nowrap">${ands.length} registro${ands.length!==1?'s':''}</span>
   </div>`;
   return `<div class="sec-hd"><div class="sec-title">Andamentos</div><button class="btn btn-primary btn-sm" onclick="openModalAnd()">+ Novo Andamento</button></div>
   ${filtros}
