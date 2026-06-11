@@ -901,6 +901,28 @@ let _cache = {};
 let _savePending = false;
 let _pendingProfile = null; // usado ao criar usuário via painel admin
 
+// ── MÁSCARAS DE CAMPO ────────────────────────────────────
+function _maskApply(el){
+  const m=el.dataset.mask; if(!m) return;
+  let v=el.value.replace(/\D/g,'');
+  if(m==='tel'){
+    if(v.length>11) v=v.slice(0,11);
+    v=v.length>10
+      ? v.replace(/(\d{2})(\d{5})(\d{4})/,'($1) $2-$3')
+      : v.replace(/(\d{2})(\d{4})(\d{0,4})/,'($1) $2'+( v.length>6?'-$3':'$3'));
+  } else if(m==='cpf'){
+    v=v.slice(0,11).replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/,'$1.$2.$3-$4').replace(/-$/,'');
+  } else if(m==='cnpj'){
+    v=v.slice(0,14).replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})/,'$1.$2.$3/$4-$5').replace(/-$/,'');
+  } else if(m==='cep'){
+    v=v.slice(0,8).replace(/(\d{5})(\d{0,3})/,'$1'+( v.length>5?'-$2':'$2'));
+  }
+  if(el.value!==v){ const p=el.selectionStart; el.value=v; try{el.setSelectionRange(p,p);}catch(e){} }
+}
+document.addEventListener('input', e=>{ if(e.target.dataset?.mask) _maskApply(e.target); });
+// aplica ao focar campo já preenchido
+document.addEventListener('focus', e=>{ if(e.target.dataset?.mask) _maskApply(e.target); }, true);
+
 function initSupabase() {
   if (!supabase || SUPA_URL === 'https://SEU_PROJETO.supabase.co') return null;
   _supa = supabase.createClient(SUPA_URL, SUPA_KEY);
@@ -1654,7 +1676,7 @@ function rGeral(inq,p){
           <div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;align-items:end">
             <div class="fg"><label>Nome *</label><input id="gdel-nom" placeholder="Ex: 1ª Delegacia de Polícia"></div>
             <div class="fg"><label>Tipo</label><select id="gdel-tip">${['DP','DEIC','GAECO','DRACO','Delegacia de Fraudes','Promotoria','Vara Criminal','Outro'].map(t=>`<option>${t}</option>`).join('')}</select></div>
-            <div class="fg"><label>Telefone</label><input id="gdel-tel" placeholder="(11) 3xxx-xxxx"></div>
+            <div class="fg"><label>Telefone</label><input id="gdel-tel" data-mask="tel" placeholder="(11) 3000-0000"></div>
             <div style="display:flex;gap:6px;align-self:end">
               <button class="btn btn-primary btn-sm" onclick="salvarDelGeral('${inq.id}')">Salvar</button>
               <button class="btn btn-secondary btn-sm" onclick="document.getElementById('g-del-form').style.display='none'">✕</button>
@@ -1677,7 +1699,7 @@ function rGeral(inq,p){
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:8px;align-items:end">
         <div class="fg"><label>Nome *</label><input id="pf-nom" placeholder="Nome completo"></div>
         <div class="fg"><label>Papel</label><select id="pf-pap">${PAPEIS.map(r=>`<option>${r}</option>`).join('')}</select></div>
-        <div class="fg"><label>CPF</label><input id="pf-cpf" placeholder="000.000.000-00"></div>
+        <div class="fg"><label>CPF</label><input id="pf-cpf" data-mask="cpf" placeholder="000.000.000-00"></div>
         <div class="fg"><label>Contato</label><input id="pf-con" placeholder="Tel / email"></div>
         <div style="display:flex;gap:6px;align-self:end">
           <button class="btn btn-primary btn-sm" onclick="salvarParteInline('${inq.id}')">Salvar</button>
@@ -1695,7 +1717,7 @@ function rGeral(inq,p){
         <div class="fg"><label>Nome *</label><input id="af-nom" placeholder="Nome"></div>
         <div class="fg"><label>Cargo</label><select id="af-car">${CARGOS.map(c=>`<option>${c}</option>`).join('')}</select></div>
         <div class="fg"><label>Órgão / Delegacia</label><input id="af-org" placeholder="Ex: 1ª DP"></div>
-        <div class="fg"><label>Telefone</label><input id="af-tel" placeholder="(11) 9xxxx-xxxx"></div>
+        <div class="fg"><label>Telefone</label><input id="af-tel" data-mask="tel" placeholder="(11) 90000-0000"></div>
         <div style="display:flex;gap:6px;align-self:end">
           <button class="btn btn-primary btn-sm" onclick="salvarAutInline('${inq.id}')">Salvar</button>
           <button class="btn btn-secondary btn-sm" onclick="toggleAutForm()">✕</button>
@@ -2591,7 +2613,7 @@ function openModalInq(id=null){
           <div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;align-items:end">
             <div class="fg"><label>Nome *</label><input id="fm-del-nom" placeholder="Ex: 1ª Delegacia de Polícia"></div>
             <div class="fg"><label>Tipo</label><select id="fm-del-tip">${['DP','DEIC','GAECO','DRACO','Delegacia de Fraudes','Promotoria','Vara Criminal','Outro'].map(t=>`<option>${t}</option>`).join('')}</select></div>
-            <div class="fg"><label>Telefone</label><input id="fm-del-tel" placeholder="(11) 3xxx-xxxx"></div>
+            <div class="fg"><label>Telefone</label><input id="fm-del-tel" data-mask="tel" placeholder="(11) 3000-0000"></div>
             <div style="display:flex;gap:6px;align-self:end">
               <button class="btn btn-primary btn-sm" onclick="salvarDelModal()">Salvar</button>
               <button class="btn btn-secondary btn-sm" onclick="document.getElementById('fm-del-form').style.display='none'">✕</button>
@@ -2622,7 +2644,7 @@ function openModalInq(id=null){
         <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:8px;align-items:end">
           <div class="fg"><label>Nome *</label><input id="mp-nom" placeholder="Nome completo"></div>
           <div class="fg"><label>Papel</label><select id="mp-pap">${PAPEIS.map(r=>`<option>${r}</option>`).join('')}</select></div>
-          <div class="fg"><label>CPF</label><input id="mp-cpf" placeholder="000.000.000-00"></div>
+          <div class="fg"><label>CPF</label><input id="mp-cpf" data-mask="cpf" placeholder="000.000.000-00"></div>
           <div class="fg"><label>Contato</label><input id="mp-con"></div>
           <div style="display:flex;gap:6px;align-self:end">
             <button type="button" class="btn btn-primary btn-sm" onclick="addMParte()">+</button>
@@ -2644,7 +2666,7 @@ function openModalInq(id=null){
           <div class="fg"><label>Nome *</label><input id="ma-nom" placeholder="Nome"></div>
           <div class="fg"><label>Cargo</label><select id="ma-car">${CARGOS.map(c=>`<option>${c}</option>`).join('')}</select></div>
           <div class="fg"><label>Órgão</label><input id="ma-org" placeholder="Ex: 1ª DP"></div>
-          <div class="fg"><label>Telefone</label><input id="ma-tel"></div>
+          <div class="fg"><label>Telefone</label><input id="ma-tel" data-mask="tel"></div>
           <div style="display:flex;gap:6px;align-self:end">
             <button type="button" class="btn btn-primary btn-sm" onclick="addMCont()">+</button>
             <button type="button" class="btn btn-secondary btn-sm" onclick="toggleMAutForm()">✕</button>
@@ -2902,7 +2924,7 @@ function openModalParte(){
     <div class="fg"><label>Nome *</label><input id="p-nom" placeholder="Nome completo"></div>
     <div class="fg"><label>Papel</label><select id="p-pap">${PAPEIS.map(r=>`<option>${r}</option>`).join('')}</select></div>
     <div class="frow">
-      <div class="fg"><label>CPF</label><input id="p-cpf" placeholder="000.000.000-00"></div>
+      <div class="fg"><label>CPF</label><input id="p-cpf" data-mask="cpf" placeholder="000.000.000-00"></div>
       <div class="fg"><label>Contato</label><input id="p-con"></div>
     </div>
   </div>`;
@@ -2924,7 +2946,7 @@ function openModalContIP(){
     </div>
     <div class="fg"><label>Órgão / Delegacia</label><input id="ci-org"></div>
     <div class="frow">
-      <div class="fg"><label>Telefone</label><input id="ci-tel"></div>
+      <div class="fg"><label>Telefone</label><input id="ci-tel" data-mask="tel"></div>
       <div class="fg"><label>Ramal</label><input id="ci-ram"></div>
     </div>
     <div class="fg"><label>Email</label><input id="ci-ema"></div>
@@ -2947,7 +2969,7 @@ function openModalDel(id=null){
     <div class="fg"><label>Tipo</label><select id="d-tip">${['DP','DEIC','GAECO','DRACO','Delegacia de Fraudes','Promotoria','Vara Criminal','Outro'].map(t=>`<option ${(d.tipo||'')===t?'selected':''}>${t}</option>`).join('')}</select></div>
     <div class="fg"><label>Endereço</label><input id="d-end" value="${d.endereco||''}"></div>
     <div class="frow">
-      <div class="fg"><label>Telefone</label><input id="d-tel" value="${d.tel||''}"></div>
+      <div class="fg"><label>Telefone</label><input id="d-tel" data-mask="tel" value="${d.tel||''}"></div>
       <div class="fg"><label>Email</label><input id="d-ema" value="${d.email||''}"></div>
     </div>
     <div class="fg"><label>Observações</label><textarea id="d-obs">${d.obs||''}</textarea></div>
@@ -2973,7 +2995,7 @@ function openModalCont(id=null){
     </div>
     <div class="fg"><label>Órgão</label><input id="c-org" value="${c.orgao||''}"></div>
     <div class="frow">
-      <div class="fg"><label>Telefone</label><input id="c-tel" value="${c.tel||''}"></div>
+      <div class="fg"><label>Telefone</label><input id="c-tel" data-mask="tel" value="${c.tel||''}"></div>
       <div class="fg"><label>Email</label><input id="c-ema" value="${c.email||''}"></div>
     </div>
     <div class="fg"><label>Observações</label><input id="c-obs" value="${c.obs||''}"></div>
@@ -3181,7 +3203,7 @@ function editarParte(id){
     <div class="fg"><label>Nome *</label><input id="p-nom" value="${p.nome||''}"></div>
     <div class="fg"><label>Papel</label><select id="p-pap">${PAPEIS.map(r=>`<option ${p.papel===r?'selected':''}>${r}</option>`).join('')}</select></div>
     <div class="frow">
-      <div class="fg"><label>CPF</label><input id="p-cpf" value="${p.cpf||''}"></div>
+      <div class="fg"><label>CPF</label><input id="p-cpf" data-mask="cpf" value="${p.cpf||''}"></div>
       <div class="fg"><label>Contato</label><input id="p-con" value="${p.contato||''}"></div>
     </div>
   </div>`;
@@ -3202,7 +3224,7 @@ function editarContIP(id){
   document.getElementById('mg-body').innerHTML=`<div class="fgrid">
     <div class="frow"><div class="fg"><label>Nome *</label><input id="ci-nom" value="${c.nome||''}"></div><div class="fg"><label>Cargo</label><select id="ci-car">${CARGOS.map(x=>`<option ${c.cargo===x?'selected':''}>${x}</option>`).join('')}</select></div></div>
     <div class="fg"><label>Órgão</label><input id="ci-org" value="${c.orgao||''}"></div>
-    <div class="frow"><div class="fg"><label>Telefone</label><input id="ci-tel" value="${c.tel||''}"></div><div class="fg"><label>Ramal</label><input id="ci-ram" value="${c.ramal||''}"></div></div>
+    <div class="frow"><div class="fg"><label>Telefone</label><input id="ci-tel" data-mask="tel" value="${c.tel||''}"></div><div class="fg"><label>Ramal</label><input id="ci-ram" value="${c.ramal||''}"></div></div>
     <div class="fg"><label>Email</label><input id="ci-ema" value="${c.email||''}"></div>
     <div class="fg"><label>Observações</label><input id="ci-obs" value="${c.obs||''}"></div>
   </div>`;
