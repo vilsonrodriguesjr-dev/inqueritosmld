@@ -787,9 +787,12 @@ body {
     <div class="sb-section">Administração</div>
     <div class="nav-item" onclick="navigate('admin')"><span class="nav-icon">⚙</span><span class="nav-label">Usuários</span></div>
   </nav>
-  <div class="sb-foot" id="sb-user-info" style="font-size:11px;padding:10px 14px;border-top:1px solid rgba(255,255,255,0.08);display:flex;flex-direction:column;gap:4px">
-    <span id="sb-user-email" style="color:rgba(255,255,255,0.6);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
-    <button onclick="doLogout()" style="background:rgba(255,255,255,0.1);border:none;color:rgba(255,255,255,0.7);border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer;text-align:left">Sair</button>
+  <div class="sb-foot" id="sb-user-info" style="font-size:11px;padding:10px 14px;border-top:1px solid rgba(255,255,255,0.08);display:flex;flex-direction:column;gap:6px">
+    <div id="sb-user-email" onclick="openModalMeuPerfil()" style="cursor:pointer;border-radius:6px;padding:4px 2px;transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.background='transparent'"></div>
+    <div style="display:flex;gap:6px">
+      <button onclick="openModalMeuPerfil()" style="flex:1;background:rgba(255,255,255,0.08);border:none;color:rgba(255,255,255,0.7);border-radius:4px;padding:5px 8px;font-size:11px;cursor:pointer;text-align:center">Meu Perfil</button>
+      <button onclick="doLogout()" style="flex:1;background:rgba(255,255,255,0.08);border:none;color:rgba(255,255,255,0.7);border-radius:4px;padding:5px 8px;font-size:11px;cursor:pointer;text-align:center">Sair</button>
+    </div>
   </div>
 </aside>
 
@@ -1016,11 +1019,7 @@ async function onLogin(user) {
   const adminNav = document.getElementById('sb-admin-nav');
   if (adminNav) adminNav.style.display = prof && prof.role === 'admin' ? '' : 'none';
 
-  const emailEl = document.getElementById('sb-user-email');
-  if (emailEl) {
-    const roleName = {admin:'Administrador', advogado:'Advogado', estagiario:'Estagiário'}[prof?.role] || '';
-    emailEl.innerHTML = `<span style="color:rgba(255,255,255,0.45);font-size:10px">${roleName}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${user.email}</span>`;
-  }
+  _updateSidebarUser();
 
   await supaLoadData();
   hideLoginScreen();
@@ -3390,67 +3389,64 @@ document.querySelectorAll('.overlay').forEach(m=>m.addEventListener('click',e=>{
 // ═══════════════════════════════════════════════════════
 // ADMIN PANEL
 // ═══════════════════════════════════════════════════════
+function _initials(nome, email) {
+  if (nome && nome.trim()) {
+    const parts = nome.trim().split(' ');
+    return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
+  }
+  return (email || '?')[0].toUpperCase();
+}
+
+function _avatarColor(str) {
+  const colors = ['#3d1a6e','#1a3050','#2d5a3d','#8b1a1a','#8b6914','#1a4060'];
+  let h = 0; for (let i = 0; i < str.length; i++) h = str.charCodeAt(i) + ((h<<5)-h);
+  return colors[Math.abs(h) % colors.length];
+}
+
 async function renderAdminPanel() {
   const el = document.getElementById('admin-panel');
   if (!el) return;
   if (!_userProfile || _userProfile.role !== 'admin') {
     el.innerHTML = '<p style="color:var(--crimson)">Acesso restrito.</p>'; return;
   }
-  const { data: users } = await _supa.from('profiles').select('*').order('created_at');
-  if (!users) { el.innerHTML = '<p>Erro ao carregar usuários.</p>'; return; }
+  const { data: users, error } = await _supa.from('profiles').select('*').order('created_at');
+  if (error || !users) { el.innerHTML = '<p>Erro ao carregar usuários.</p>'; return; }
 
   const roleLabel = { admin: 'Administrador', advogado: 'Advogado', estagiario: 'Estagiário' };
 
   el.innerHTML = `
   <div class="card" style="overflow:auto">
     <table class="admin-table">
-      <thead>
-        <tr>
-          <th>Nome</th>
-          <th>E-mail</th>
-          <th>Perfil</th>
-          <th>Status</th>
-          <th>Cadastro</th>
-          <th>Ações</th>
-        </tr>
-      </thead>
+      <thead><tr>
+        <th>Usuário</th><th>E-mail</th><th>Perfil</th><th>Status</th><th>Cadastro</th><th>Ações</th>
+      </tr></thead>
       <tbody>
-        ${users.map(u => `
-        <tr>
-          <td>${u.nome || '<span style="color:var(--muted)">—</span>'}</td>
-          <td>${u.email}</td>
-          <td>
-            <select onchange="adminUpdateRole('${u.id}',this.value)" style="border:1px solid var(--line);border-radius:4px;padding:3px 6px;font-size:12px;background:var(--white)" ${u.id === _supaUser.id ? 'disabled' : ''}>
-              <option value="admin"      ${u.role==='admin'      ?'selected':''}>Administrador</option>
-              <option value="advogado"   ${u.role==='advogado'   ?'selected':''}>Advogado</option>
-              <option value="estagiario" ${u.role==='estagiario' ?'selected':''}>Estagiário</option>
-            </select>
-          </td>
-          <td>
-            <span class="badge-role badge-${u.status}">${u.status === 'ativo' ? 'Ativo' : 'Bloqueado'}</span>
-          </td>
-          <td style="font-size:12px;color:var(--muted)">${u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '—'}</td>
-          <td style="display:flex;gap:6px;flex-wrap:wrap">
-            ${u.id !== _supaUser.id ? `
-              <button class="btn btn-sm" style="font-size:11px;padding:3px 10px;background:${u.status==='ativo'?'var(--crimson-bg)':'var(--sage-bg)'};color:${u.status==='ativo'?'var(--crimson)':'var(--sage)'};border:none;border-radius:4px;cursor:pointer"
-                onclick="adminToggleStatus('${u.id}','${u.status}')">
-                ${u.status === 'ativo' ? 'Bloquear' : 'Ativar'}
-              </button>
-              <button class="btn btn-sm" style="font-size:11px;padding:3px 10px;background:var(--crimson-bg);color:var(--crimson);border:none;border-radius:4px;cursor:pointer"
-                onclick="adminDeleteUser('${u.id}','${u.email}')">
-                Excluir
-              </button>
-            ` : '<span style="font-size:11px;color:var(--muted)">Você</span>'}
-          </td>
-        </tr>`).join('')}
+        ${users.map(u => {
+          const ini = _initials(u.nome, u.email);
+          const cor = _avatarColor(u.email);
+          const isMe = u.id === _supaUser.id;
+          return `<tr>
+            <td style="display:flex;align-items:center;gap:10px">
+              <div style="width:32px;height:32px;border-radius:50%;background:${cor};display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0">${ini}</div>
+              <span>${u.nome || '<span style="color:var(--muted);font-style:italic">Sem nome</span>'}</span>
+            </td>
+            <td style="font-size:12px">${u.email}</td>
+            <td><span class="badge-role badge-${u.role}">${roleLabel[u.role]||u.role}</span></td>
+            <td><span class="badge-role badge-${u.status}">${u.status==='ativo'?'Ativo':'Bloqueado'}</span></td>
+            <td style="font-size:12px;color:var(--muted)">${u.created_at?new Date(u.created_at).toLocaleDateString('pt-BR'):'—'}</td>
+            <td style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+              <button onclick="openModalEditUsuario('${u.id}')" style="background:var(--navy-bg);color:var(--navy);border:none;border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer">Editar</button>
+              ${!isMe ? `
+              <button onclick="adminResetSenha('${u.email}')" style="background:var(--gold-bg);color:var(--gold);border:none;border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer">Reset Senha</button>
+              <button onclick="adminToggleStatus('${u.id}','${u.status}')" style="background:${u.status==='ativo'?'var(--crimson-bg)':'var(--sage-bg)'};color:${u.status==='ativo'?'var(--crimson)':'var(--sage)'};border:none;border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer">${u.status==='ativo'?'Bloquear':'Ativar'}</button>
+              <button onclick="adminDeleteUser('${u.id}','${u.email}')" style="background:var(--crimson-bg);color:var(--crimson);border:none;border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer">Excluir</button>
+              ` : '<span style="font-size:11px;color:var(--muted)">— você —</span>'}
+            </td>
+          </tr>`;
+        }).join('')}
       </tbody>
     </table>
   </div>`;
-}
-
-async function adminUpdateRole(uid, role) {
-  await _supa.from('profiles').update({ role }).eq('id', uid);
-  renderAdminPanel();
 }
 
 async function adminToggleStatus(uid, currentStatus) {
@@ -3460,9 +3456,136 @@ async function adminToggleStatus(uid, currentStatus) {
 }
 
 async function adminDeleteUser(uid, email) {
-  if (!confirm(`Excluir o usuário ${email}? Esta ação não pode ser desfeita.`)) return;
+  if (!confirm(`Excluir permanentemente o usuário ${email}?\n\nEsta ação não pode ser desfeita.`)) return;
   await _supa.from('profiles').delete().eq('id', uid);
   renderAdminPanel();
+}
+
+async function adminResetSenha(email) {
+  if (!confirm(`Enviar e-mail de redefinição de senha para ${email}?`)) return;
+  const { error } = await _supa.auth.resetPasswordForEmail(email);
+  if (error) { alert('Erro: ' + error.message); return; }
+  alert(`E-mail de redefinição enviado para ${email}.`);
+}
+
+// ── Editar usuário (admin) ──────────────────────────
+async function openModalEditUsuario(uid) {
+  const { data: u } = await _supa.from('profiles').select('*').eq('id', uid).single();
+  if (!u) return;
+  document.getElementById('mg-title').textContent = 'Editar Usuário';
+  document.getElementById('mg-body').innerHTML = `
+    <div style="padding:16px 22px;display:flex;flex-direction:column;gap:12px">
+      <div class="fg"><label>NOME COMPLETO</label>
+        <input id="eu-nome" type="text" value="${u.nome||''}" placeholder="Nome completo" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:var(--r);font-size:13px">
+      </div>
+      <div class="fg"><label>E-MAIL</label>
+        <input type="email" value="${u.email}" disabled style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:var(--r);font-size:13px;background:var(--paper);color:var(--muted)">
+        <span style="font-size:11px;color:var(--muted)">O e-mail não pode ser alterado aqui.</span>
+      </div>
+      <div class="fg"><label>PERFIL DE ACESSO</label>
+        <select id="eu-role" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:var(--r);font-size:13px" ${uid===_supaUser.id?'disabled':''}>
+          <option value="advogado"   ${u.role==='advogado'  ?'selected':''}>Advogado</option>
+          <option value="estagiario" ${u.role==='estagiario'?'selected':''}>Estagiário</option>
+          <option value="admin"      ${u.role==='admin'     ?'selected':''}>Administrador</option>
+        </select>
+      </div>
+      <div class="fg"><label>STATUS</label>
+        <select id="eu-status" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:var(--r);font-size:13px" ${uid===_supaUser.id?'disabled':''}>
+          <option value="ativo"     ${u.status==='ativo'    ?'selected':''}>Ativo</option>
+          <option value="bloqueado" ${u.status==='bloqueado'?'selected':''}>Bloqueado</option>
+        </select>
+      </div>
+      <p id="eu-err" style="color:var(--crimson-lt);font-size:12px;min-height:16px"></p>
+    </div>`;
+  document.getElementById('mg-ft').innerHTML = `
+    <button class="btn btn-secondary" onclick="closeModal('modal-generic')">Cancelar</button>
+    <button class="btn btn-primary" onclick="adminSaveUsuario('${uid}')">Salvar</button>`;
+  openModal('modal-generic');
+}
+
+async function adminSaveUsuario(uid) {
+  const nome   = document.getElementById('eu-nome').value.trim();
+  const role   = document.getElementById('eu-role')?.value;
+  const status = document.getElementById('eu-status')?.value;
+  const err    = document.getElementById('eu-err');
+  const upd = { nome };
+  if (role)   upd.role   = role;
+  if (status) upd.status = status;
+  const { error } = await _supa.from('profiles').update(upd).eq('id', uid);
+  if (error) { err.textContent = 'Erro ao salvar: ' + error.message; return; }
+  closeModal('modal-generic');
+  renderAdminPanel();
+}
+
+// ── Meu Perfil (qualquer usuário) ───────────────────
+function openModalMeuPerfil() {
+  const u = _userProfile || {};
+  const roleLabel = { admin: 'Administrador', advogado: 'Advogado', estagiario: 'Estagiário' };
+  document.getElementById('mg-title').textContent = 'Meu Perfil';
+  document.getElementById('mg-body').innerHTML = `
+    <div style="padding:16px 22px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:center;gap:12px;padding-bottom:12px;border-bottom:1px solid var(--line)">
+        <div style="width:48px;height:48px;border-radius:50%;background:${_avatarColor(_supaUser.email)};display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:700">${_initials(u.nome,_supaUser.email)}</div>
+        <div>
+          <div style="font-weight:600;font-size:14px">${u.nome||'Sem nome'}</div>
+          <div style="font-size:12px;color:var(--muted)">${_supaUser.email}</div>
+          <span class="badge-role badge-${u.role}" style="margin-top:4px;display:inline-block">${roleLabel[u.role]||''}</span>
+        </div>
+      </div>
+      <div class="fg"><label>NOME DE EXIBIÇÃO</label>
+        <input id="mp-nome" type="text" value="${u.nome||''}" placeholder="Seu nome completo" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:var(--r);font-size:13px">
+      </div>
+      <div style="border-top:1px solid var(--line);padding-top:12px">
+        <div style="font-size:12px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">Alterar Senha</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <input id="mp-pass1" type="password" placeholder="Nova senha (mín. 6 caracteres)" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:var(--r);font-size:13px">
+          <input id="mp-pass2" type="password" placeholder="Confirmar nova senha" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:var(--r);font-size:13px">
+        </div>
+      </div>
+      <p id="mp-err" style="color:var(--crimson-lt);font-size:12px;min-height:16px"></p>
+    </div>`;
+  document.getElementById('mg-ft').innerHTML = `
+    <button class="btn btn-secondary" onclick="closeModal('modal-generic')">Cancelar</button>
+    <button class="btn btn-primary" onclick="saveMeuPerfil()">Salvar</button>`;
+  openModal('modal-generic');
+}
+
+async function saveMeuPerfil() {
+  const nome  = document.getElementById('mp-nome').value.trim();
+  const pass1 = document.getElementById('mp-pass1').value;
+  const pass2 = document.getElementById('mp-pass2').value;
+  const err   = document.getElementById('mp-err');
+  err.textContent = '';
+  if (pass1 && pass1 !== pass2) { err.textContent = 'As senhas não coincidem.'; return; }
+  if (pass1 && pass1.length < 6) { err.textContent = 'A senha deve ter pelo menos 6 caracteres.'; return; }
+  // Salva nome no perfil
+  const { error: e1 } = await _supa.from('profiles').update({ nome }).eq('id', _supaUser.id);
+  if (e1) { err.textContent = 'Erro ao salvar nome: ' + e1.message; return; }
+  _userProfile.nome = nome;
+  // Altera senha se preenchida
+  if (pass1) {
+    const { error: e2 } = await _supa.auth.updateUser({ password: pass1 });
+    if (e2) { err.textContent = 'Erro ao alterar senha: ' + e2.message; return; }
+  }
+  // Atualiza sidebar
+  _updateSidebarUser();
+  closeModal('modal-generic');
+}
+
+function _updateSidebarUser() {
+  const emailEl = document.getElementById('sb-user-email');
+  if (!emailEl || !_userProfile) return;
+  const roleLabel = { admin:'Administrador', advogado:'Advogado', estagiario:'Estagiário' };
+  const ini = _initials(_userProfile.nome, _supaUser.email);
+  const cor = _avatarColor(_supaUser.email);
+  emailEl.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;overflow:hidden">
+      <div style="width:28px;height:28px;border-radius:50%;background:${cor};display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;flex-shrink:0">${ini}</div>
+      <div style="overflow:hidden;min-width:0">
+        <div style="color:rgba(255,255,255,0.9);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_userProfile.nome||_supaUser.email}</div>
+        <div style="color:rgba(255,255,255,0.45);font-size:10px">${roleLabel[_userProfile.role]||''}</div>
+      </div>
+    </div>`;
 }
 
 function openModalNovoUsuario() {
