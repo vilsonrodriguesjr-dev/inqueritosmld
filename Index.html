@@ -3466,25 +3466,25 @@ async function adminDeleteUser(uid, email) {
 }
 
 function openModalNovoUsuario() {
-  const body = `
-    <style>#mi-body{padding:14px 22px}#mi-body .fg{gap:2px}#mi-body .fg label{font-size:9px;letter-spacing:.5px}#mi-body .fg input,#mi-body .fg select{padding:5px 8px;font-size:12px}</style>
-    <div id="mi-body">
-      <div class="fgrid" style="gap:10px">
-        <div class="fg"><label>NOME</label><input id="nu-nome" type="text" placeholder="Nome completo"></div>
-        <div class="fg"><label>E-MAIL</label><input id="nu-email" type="email" placeholder="email@exemplo.com"></div>
-        <div class="fg"><label>SENHA PROVISÓRIA</label><input id="nu-pass" type="password" placeholder="Mínimo 6 caracteres"></div>
-        <div class="fg"><label>PERFIL</label>
-          <select id="nu-role">
-            <option value="advogado">Advogado</option>
-            <option value="estagiario">Estagiário</option>
-            <option value="admin">Administrador</option>
-          </select>
-        </div>
+  document.getElementById('mg-title').textContent = 'Novo Usuário';
+  document.getElementById('mg-body').innerHTML = `
+    <div style="padding:16px 22px;display:flex;flex-direction:column;gap:12px">
+      <div class="fg"><label>NOME COMPLETO</label><input id="nu-nome" type="text" placeholder="Nome completo" class="form-input"></div>
+      <div class="fg"><label>E-MAIL</label><input id="nu-email" type="email" placeholder="email@exemplo.com" class="form-input"></div>
+      <div class="fg"><label>SENHA PROVISÓRIA</label><input id="nu-pass" type="password" placeholder="Mínimo 6 caracteres" class="form-input"></div>
+      <div class="fg"><label>PERFIL DE ACESSO</label>
+        <select id="nu-role" class="form-input">
+          <option value="advogado">Advogado</option>
+          <option value="estagiario">Estagiário</option>
+          <option value="admin">Administrador</option>
+        </select>
       </div>
-      <p id="nu-err" style="color:var(--crimson-lt);font-size:12px;margin-top:8px;min-height:16px"></p>
+      <p id="nu-err" style="color:var(--crimson-lt);font-size:12px;min-height:16px"></p>
     </div>`;
-  openModal('modal-generic','Novo Usuário', body,
-    `<button class="btn btn-primary btn-sm" onclick="adminCreateUser()">Criar Usuário</button>`);
+  document.getElementById('mg-ft').innerHTML = `
+    <button class="btn btn-secondary" onclick="closeModal('modal-generic')">Cancelar</button>
+    <button class="btn btn-primary" onclick="adminCreateUser()">Criar Usuário</button>`;
+  openModal('modal-generic');
 }
 
 async function adminCreateUser() {
