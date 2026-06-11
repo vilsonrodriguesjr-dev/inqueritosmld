@@ -857,6 +857,10 @@ body {
       <span></span><span></span><span></span>
     </button>
     <div class="topbar-title" id="topbar-title">Dashboard</div>
+    <div id="sync-indicator" style="display:none;align-items:center;gap:5px;font-size:11px;color:var(--muted);margin-left:auto;margin-right:12px;white-space:nowrap">
+      <span id="sync-dot" style="width:6px;height:6px;border-radius:50%;background:var(--muted2);display:inline-block;flex-shrink:0"></span>
+      <span id="sync-label">—</span>
+    </div>
     <div class="topbar-actions" id="topbar-actions"></div>
   </header>
   <div class="content" id="content"></div>
@@ -958,16 +962,32 @@ async function supaLoadData() {
   }
 }
 
+function _syncUI(state, label){
+  const ind=document.getElementById('sync-indicator');
+  const dot=document.getElementById('sync-dot');
+  const lbl=document.getElementById('sync-label');
+  if(!ind) return;
+  ind.style.display='flex';
+  if(state==='saving'){ dot.style.background='var(--gold-lt)'; lbl.textContent='Salvando...'; }
+  else if(state==='ok'){
+    dot.style.background='var(--sage-lt)'; lbl.textContent='Atualizado '+label;
+    setTimeout(()=>{ dot.style.background='var(--muted2)'; lbl.textContent='Atualizado '+label; },3000);
+  } else if(state==='err'){ dot.style.background='var(--crimson-lt)'; lbl.textContent='Erro ao salvar'; }
+}
+
 async function supaSaveData() {
   if (!_supa || !_supaUser) return;
   if (_savePending) return;
   _savePending = true;
+  _syncUI('saving');
   setTimeout(async () => {
     _savePending = false;
-    await _supa.from('user_data').upsert(
+    const { error } = await _supa.from('user_data').upsert(
       { user_id: TEAM_DATA_ID, data: _cache, updated_at: new Date().toISOString() },
       { onConflict: 'user_id' }
     );
+    const hora=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    _syncUI(error?'err':'ok', hora);
   }, 600);
 }
 
