@@ -3622,12 +3622,14 @@ async function adminCreateUser() {
   const { data, error } = await _supa.auth.signUp({ email, password: pass });
   if (error) { err.textContent = error.message; return; }
 
-  if (data.user) {
-    // Upsert perfil com nome e role
-    await _supa.from('profiles').upsert({
-      id: data.user.id, email, nome, role, status: 'ativo'
-    }, { onConflict: 'id' });
-  }
+  const uid = data?.user?.id;
+  if (!uid) { err.textContent = 'Usuário criado mas não foi possível salvar o perfil. Edite manualmente na lista.'; return; }
+
+  const { error: e2 } = await _supa.from('profiles').upsert(
+    { id: uid, email, nome: nome || null, role, status: 'ativo' },
+    { onConflict: 'id' }
+  );
+  if (e2) { err.textContent = 'Usuário criado mas erro ao salvar perfil: ' + e2.message; return; }
 
   closeModal('modal-generic');
   navigate('admin');
