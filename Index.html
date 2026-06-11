@@ -1859,10 +1859,39 @@ function rAuts(inq){
 }
 
 // ── TAB 4: Andamentos
+let _andQ='', _andTipo='', _andDe='', _andAte='', _andOrd='desc';
+function setAndFilter(key,val){ if(key==='q')_andQ=val; else if(key==='tipo')_andTipo=val; else if(key==='de')_andDe=val; else if(key==='ate')_andAte=val; else if(key==='ord')_andOrd=val; switchTab(1); }
+
 function rAnds(inq){
-  const ands=DB.get('andamentos').filter(a=>a.inquerito_id===inq.id).sort((a,b)=>new Date(b.data)-new Date(a.data));
+  let ands=DB.get('andamentos').filter(a=>a.inquerito_id===inq.id);
+  const tipos=[...new Set(ands.map(a=>a.tipo).filter(Boolean))].sort();
+  if(_andQ) ands=ands.filter(a=>[a.descricao,a.combinado,a.proximo_passo,a.responsavel,a.tipo].join(' ').toLowerCase().includes(_andQ.toLowerCase()));
+  if(_andTipo) ands=ands.filter(a=>a.tipo===_andTipo);
+  if(_andDe) ands=ands.filter(a=>a.data>=_andDe);
+  if(_andAte) ands=ands.filter(a=>a.data<=_andAte);
+  ands=ands.sort((a,b)=>_andOrd==='desc'?new Date(b.data)-new Date(a.data):new Date(a.data)-new Date(b.data));
+  const inpS='padding:5px 9px;border:1px solid var(--line);border-radius:var(--r);font-size:12px;outline:none;background:var(--white);color:var(--ink)';
+  const ativo=_andQ||_andTipo||_andDe||_andAte;
+  const filtros=`<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;padding:12px 14px;background:var(--paper);border:1px solid var(--line);border-radius:var(--r2)">
+    <input value="${_andQ}" oninput="setAndFilter('q',this.value)" placeholder="Buscar nos andamentos..." style="${inpS};flex:1;min-width:160px">
+    <select onchange="setAndFilter('tipo',this.value)" style="${inpS}">
+      <option value="">Todos os tipos</option>
+      ${tipos.map(t=>`<option value="${t}" ${_andTipo===t?'selected':''}>${t}</option>`).join('')}
+    </select>
+    <div style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--ink3)">
+      De <input type="date" value="${_andDe}" onchange="setAndFilter('de',this.value)" style="${inpS}">
+      até <input type="date" value="${_andAte}" onchange="setAndFilter('ate',this.value)" style="${inpS}">
+    </div>
+    <select onchange="setAndFilter('ord',this.value)" style="${inpS}">
+      <option value="desc" ${_andOrd==='desc'?'selected':''}>Mais recente primeiro</option>
+      <option value="asc" ${_andOrd==='asc'?'selected':''}>Mais antigo primeiro</option>
+    </select>
+    ${ativo?`<button onclick="_andQ='';_andTipo='';_andDe='';_andAte='';switchTab(1)" style="padding:5px 10px;border:1px solid var(--line);border-radius:var(--r);background:var(--white);font-size:12px;cursor:pointer;color:var(--crimson)">✕ Limpar</button>`:''}
+    <span style="font-size:11px;color:var(--muted);white-space:nowrap">${ands.length} registro${ands.length!==1?'s':''}</span>
+  </div>`;
   return `<div class="sec-hd"><div class="sec-title">Andamentos</div><button class="btn btn-primary btn-sm" onclick="openModalAnd()">+ Novo Andamento</button></div>
-  ${ands.length===0?'<div style="color:var(--muted);font-size:13px">Nenhum andamento registrado.</div>':
+  ${filtros}
+  ${ands.length===0?'<div style="color:var(--muted);font-size:13px">Nenhum andamento encontrado.</div>':
     `<div class="vtl">${ands.map((a,idx)=>`
     <div class="vtl-item">
       <div class="vtl-spine"><div class="vtl-dot"></div>${idx<ands.length-1?'<div class="vtl-line"></div>':''}</div>
