@@ -2426,8 +2426,8 @@ function delCrime(id){if(!confirm('Excluir crime?'))return;DB.set('crimes_extra'
 // DELEGACIAS / CONTATOS
 // ═══════════════════════════════════════════════════════
 // ── estado de visualização ──────────────────────────
-let _delView='card', _delSort='nome', _delSortAsc=true, _delQ='';
-let _cntView='card', _cntSort='nome', _cntSortAsc=true, _cntQ='';
+let _delView='table', _delSort='nome', _delSortAsc=true, _delQ='';
+let _cntView='table', _cntSort='nome', _cntSortAsc=true, _cntQ='';
 
 function _sortIcon(col, cur, asc){ return col===cur?(asc?'▲':'▼'):'↕'; }
 
