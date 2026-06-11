@@ -337,19 +337,7 @@ body {
 .tbl thead th.sortable:hover { color: var(--navy-lt); }
 .tbl thead th.sort-asc::after { content: ' ↑'; color: var(--navy-lt); }
 .tbl thead th.sort-desc::after { content: ' ↓'; color: var(--navy-lt); }
-.tbl-filter-row th {
-  padding: 5px 8px;
-  background: var(--bg);
-  border-bottom: 2px solid var(--line);
-}
-.tbl-filter-row input, .tbl-filter-row select {
-  width: 100%; padding: 4px 8px;
-  font-size: 11px; color: var(--ink2);
-  border: 1px solid var(--line);
-  border-radius: var(--r); background: var(--white);
-  outline: none; font-family: 'Source Sans 3', sans-serif;
-}
-.tbl-filter-row input:focus, .tbl-filter-row select:focus { border-color: var(--navy-lt); }
+.tbl thead th input:focus, .tbl thead th select:focus { border-color: var(--navy-lt) !important; }
 .tbl tbody td {
   padding: 11px 14px;
   font-size: 13px; color: var(--ink2);
