@@ -866,12 +866,15 @@ function initSupabase() {
   return _supa;
 }
 
+// ID fixo compartilhado por todo o escritório
+const TEAM_DATA_ID = '00000000-0000-0000-0000-000000000001';
+
 async function supaLoadData() {
   if (!_supa || !_supaUser) return;
   const { data, error } = await _supa
     .from('user_data')
     .select('data')
-    .eq('user_id', _supaUser.id)
+    .eq('user_id', TEAM_DATA_ID)
     .single();
   if (data && data.data) {
     _cache = data.data;
@@ -885,7 +888,7 @@ async function supaSaveData() {
   setTimeout(async () => {
     _savePending = false;
     await _supa.from('user_data').upsert(
-      { user_id: _supaUser.id, data: _cache, updated_at: new Date().toISOString() },
+      { user_id: TEAM_DATA_ID, data: _cache, updated_at: new Date().toISOString() },
       { onConflict: 'user_id' }
     );
   }, 600);
