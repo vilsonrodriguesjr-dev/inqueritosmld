@@ -940,6 +940,7 @@ body {
     <div class="nav-item active" onclick="navigate('dashboard')"><span class="nav-icon">▪</span><span class="nav-label">Dashboard</span></div>
     <div class="nav-item" onclick="navigate('lista')"><span class="nav-icon">≡</span><span class="nav-label">Inquéritos</span></div>
     <div class="nav-item" onclick="navigate('agenda')"><span class="nav-icon">◷</span><span class="nav-label">Agenda / Prazos</span></div>
+    <div class="nav-item" onclick="navigate('bi')"><span class="nav-icon">◎</span><span class="nav-label">Business Intelligence</span></div>
     <div class="nav-item" onclick="navigate('atividades')"><span class="nav-icon">◈</span><span class="nav-label">Atividades</span></div>
     <div class="nav-item" onclick="navigate('tarefas')"><span class="nav-icon">✓</span><span class="nav-label">Tarefas</span></div>
     <div class="nav-item" onclick="navigate('etiquetas')"><span class="nav-icon">#</span><span class="nav-label">Etiquetas</span></div>
@@ -1438,10 +1439,10 @@ let curView='dashboard', curInqId=null, curTab=0, editId=null;
 function navigate(view,id=null){
   curView=view;
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  const map={dashboard:0,lista:1,agenda:2,atividades:3,tarefas:4,etiquetas:5,delegacias:7,contatos:8,crimes:9};
+  const map={dashboard:0,lista:1,agenda:2,bi:3,atividades:4,tarefas:5,etiquetas:6,delegacias:8,contatos:9,crimes:10};
   const items=document.querySelectorAll('.nav-item');
   if(map[view]!==undefined) items[map[view]]?.classList.add('active');
-  const titles={dashboard:'Dashboard',lista:'Inquéritos',ficha:'Ficha do Inquérito',agenda:'Agenda & Prazos',atividades:'Atividades',tarefas:'Tarefas',etiquetas:'Etiquetas',delegacias:'Delegacias & Órgãos',contatos:'Contatos Externos',crimes:'Tabela de Crimes'};
+  const titles={dashboard:'Dashboard',lista:'Inquéritos',ficha:'Ficha do Inquérito',agenda:'Agenda & Prazos',bi:'Business Intelligence',atividades:'Atividades',tarefas:'Tarefas',etiquetas:'Etiquetas',delegacias:'Delegacias & Órgãos',contatos:'Contatos Externos',crimes:'Tabela de Crimes'};
   document.getElementById('topbar-title').textContent=titles[view]||view;
   if(view==='ficha'&&id){curInqId=id;curTab=0;}
   render();
@@ -1455,6 +1456,7 @@ function render(){
     case 'lista':      act.innerHTML='<button class="btn btn-primary btn-sm" onclick="openModalInq()">+ Novo Inquérito</button>';cnt.innerHTML=renderLista();break;
     case 'ficha':      act.innerHTML=renderFichaAct();cnt.innerHTML=renderFicha();break;
     case 'agenda':     act.innerHTML='';cnt.innerHTML=renderAgenda();break;
+    case 'bi':         act.innerHTML='<button class="btn btn-secondary btn-sm" onclick="navigate(\'bi\')">↻ Atualizar</button>';cnt.innerHTML=renderBI();break;
     case 'atividades': act.innerHTML='';cnt.innerHTML=renderAtividades();break;
     case 'tarefas':   act.innerHTML='';cnt.innerHTML=renderTarefasPage();break;
     case 'etiquetas': act.innerHTML='';cnt.innerHTML=renderEtiquetasPage();break;
@@ -1522,6 +1524,253 @@ function prescMini(inq){
 }
 
 // ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+// BUSINESS INTELLIGENCE
+// ═══════════════════════════════════════════════════════
+function renderBI(){
+  const inqs=DB.get('inqueritos');
+  const tarefas=DB.get('tarefas');
+  const andamentos=DB.get('andamentos');
+  const total=inqs.length;
+  if(!total) return `<div style="padding:60px;text-align:center;color:var(--muted)"><div style="font-size:48px;margin-bottom:16px">◎</div><div style="font-size:18px;font-weight:600">Nenhum inquérito cadastrado ainda</div><div style="font-size:13px;margin-top:8px">Cadastre inquéritos para visualizar os relatórios</div></div>`;
+
+  // ── helpers ──────────────────────────────────────────
+  const groupBy=(arr,fn)=>arr.reduce((m,x)=>{const k=fn(x)||'Não informado';m[k]=(m[k]||0)+1;return m;},{});
+  const top=(obj,n=8)=>Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,n);
+  const PALETA=['#3a6ea5','#4a8a62','#c94c4c','#c9a84c','#e07b39','#6a3aaa','#2d8a8a','#8a5a2d','#5a3a8a','#8a2d5a','#3a8a5a','#8a3a2d'];
+
+  // ── prescrições ───────────────────────────────────────
+  const hoje=new Date();
+  let prescOk=0,prescWarn=0,prescCrit=0,prescExp=0,prescNA=0;
+  inqs.forEach(inq=>{
+    const p=calcPrescricao(inq);
+    if(!p||p.imprescritivel){prescNA++;return;}
+    if(p.nivel==='ok') prescOk++;
+    else if(p.nivel==='warn') prescWarn++;
+    else if(p.nivel==='crit') prescCrit++;
+    else prescExp++;
+  });
+
+  // ── tarefas stats ────────────────────────────────────
+  const tPend=tarefas.filter(t=>!t.concluida).length;
+  const tConc=tarefas.filter(t=>t.concluida).length;
+  const tVenc=tarefas.filter(t=>!t.concluida&&t.prazo&&t.prazo<hoje.toISOString().slice(0,10)).length;
+  const txConc=tarefas.length?Math.round(tConc/tarefas.length*100):0;
+  const prioCount=groupBy(tarefas.filter(t=>!t.concluida),t=>t.prioridade||'normal');
+
+  // ── tendência mensal (últimos 12 meses) ──────────────
+  const meses=[];
+  for(let i=11;i>=0;i--){
+    const d=new Date(hoje.getFullYear(),hoje.getMonth()-i,1);
+    meses.push({label:d.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'}),y:d.getFullYear(),m:d.getMonth(),count:0});
+  }
+  inqs.forEach(inq=>{
+    if(!inq.data_abertura) return;
+    const d=new Date(inq.data_abertura+'T00:00');
+    const slot=meses.find(s=>s.y===d.getFullYear()&&s.m===d.getMonth());
+    if(slot) slot.count++;
+  });
+
+  // ── andamentos por mês ────────────────────────────────
+  const andMeses=meses.map(m=>({...m,count:0}));
+  andamentos.forEach(a=>{
+    if(!a.data) return;
+    const d=new Date(a.data+'T00:00');
+    const slot=andMeses.find(s=>s.y===d.getFullYear()&&s.m===d.getMonth());
+    if(slot) slot.count++;
+  });
+
+  // ── funções de gráfico ────────────────────────────────
+  function donut(data,label){
+    const tot=data.reduce((s,d)=>s+d.v,0);
+    if(!tot) return `<div style="text-align:center;color:var(--muted);font-size:12px;padding:20px">Sem dados</div>`;
+    const r=52,cx=80,cy=80,circ=2*Math.PI*r;
+    let off=0;
+    const slices=data.map(d=>{
+      const pct=d.v/tot;
+      const dash=pct*circ;
+      const s=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${d.cor}" stroke-width="24"
+        stroke-dasharray="${dash.toFixed(2)} ${(circ-dash).toFixed(2)}"
+        stroke-dashoffset="${(circ*0.25-off*circ).toFixed(2)}"/>`;
+      off+=pct;
+      return s;
+    });
+    return `<div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+      <svg width="160" height="160" viewBox="0 0 160 160" style="flex-shrink:0">
+        <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--line2)" stroke-width="24"/>
+        ${slices.join('')}
+        <text x="${cx}" y="${cy-6}" text-anchor="middle" font-size="26" font-weight="700" fill="var(--ink)" font-family="Playfair Display,serif">${tot}</text>
+        <text x="${cx}" y="${cy+12}" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="Source Sans 3,sans-serif" letter-spacing=".4">${label}</text>
+      </svg>
+      <div style="flex:1;min-width:120px;display:flex;flex-direction:column;gap:7px">
+        ${data.map(d=>`<div style="display:flex;align-items:center;gap:7px">
+          <div style="width:10px;height:10px;border-radius:50%;background:${d.cor};flex-shrink:0"></div>
+          <div style="font-size:12px;color:var(--ink2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${d.l}">${d.l}</div>
+          <div style="font-size:12px;font-weight:700;color:var(--ink)">${d.v}</div>
+          <div style="font-size:11px;color:var(--muted)">${(d.v/tot*100).toFixed(0)}%</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  function hbars(data){
+    if(!data.length) return `<div style="color:var(--muted);font-size:12px">Sem dados</div>`;
+    const mx=Math.max(...data.map(d=>d.v),1);
+    return `<div style="display:flex;flex-direction:column;gap:8px">
+      ${data.map(d=>`<div style="display:flex;align-items:center;gap:10px">
+        <div style="width:130px;font-size:12px;color:var(--ink2);text-align:right;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${d.l}">${d.l}</div>
+        <div style="flex:1;height:22px;background:var(--line2);border-radius:5px;overflow:hidden;position:relative">
+          <div style="width:${(d.v/mx*100).toFixed(1)}%;height:100%;background:${d.cor||'var(--navy-lt)'};border-radius:5px;transition:width .6s ease"></div>
+        </div>
+        <div style="width:28px;font-size:12px;font-weight:700;color:var(--ink);flex-shrink:0">${d.v}</div>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  function monthBars(data,cor='var(--navy-lt)',cor2=null){
+    const mx=Math.max(...data.map(d=>d.count),1);
+    const W=34,G=6,H=80;
+    const bars=data.map((d,i)=>{
+      const bh=Math.max(d.count?(d.count/mx*H):0,d.count?3:0);
+      const x=i*(W+G);
+      return `<g>
+        <rect x="${x}" y="${H-bh}" width="${W}" height="${bh}" rx="4" fill="${cor2&&i===data.length-1?cor2:cor}" opacity=".85"/>
+        <text x="${x+W/2}" y="${H+13}" text-anchor="middle" font-size="8.5" fill="var(--muted)" font-family="Source Sans 3,sans-serif">${d.label}</text>
+        ${d.count?`<text x="${x+W/2}" y="${H-bh-4}" text-anchor="middle" font-size="9.5" font-weight="700" fill="${cor}" font-family="Source Sans 3,sans-serif">${d.count}</text>`:''}
+      </g>`;
+    });
+    const tw=data.length*(W+G)-G;
+    return `<svg width="100%" viewBox="0 0 ${tw} ${H+20}" preserveAspectRatio="xMidYMid meet" style="overflow:visible">${bars.join('')}</svg>`;
+  }
+
+  // ── agrupamentos ──────────────────────────────────────
+  const byStatus=top(groupBy(inqs,i=>i.status));
+  const byFase=top(groupBy(inqs,i=>i.fase));
+  const byCrime=top(groupBy(inqs,i=>i.crime),10);
+  const byPapel=top(groupBy(inqs,i=>i.papel_cliente));
+  const byUF=top(groupBy(inqs,i=>i.uf));
+  const byCidade=top(groupBy(inqs,i=>i.cidade),10);
+  const byComarca=top(groupBy(inqs,i=>i.comarca),8);
+  const byResp=top(groupBy(tarefas.filter(t=>!t.concluida),t=>t.responsavel),8);
+
+  const STATUS_CORES={'Em apuração':'#3a6ea5','Arquivado':'#8a8fa8','Declinado':'#c9a84c','Concluído':'#4a8a62','Suspenso':'#e07b39','Aguardando':'#6a3aaa'};
+
+  // ── insights automáticos ──────────────────────────────
+  const insights=[];
+  if(prescCrit>0) insights.push({ico:'⚠',cor:'#c94c4c',bg:'#fdf0f0',txt:`<b>${prescCrit} inquérito${prescCrit>1?'s':''}</b> com prescrição crítica (menos de 180 dias)`});
+  if(prescExp>0) insights.push({ico:'🔴',cor:'#8b1a1a',bg:'#fbe8e8',txt:`<b>${prescExp} inquérito${prescExp>1?'s':''}</b> com prazo prescricional já superado`});
+  if(tVenc>0) insights.push({ico:'📋',cor:'#c9a84c',bg:'#fdf8ec',txt:`<b>${tVenc} tarefa${tVenc>1?'s':''}</b> vencida${tVenc>1?'s':''} aguardando ação`});
+  if(byCrime.length) insights.push({ico:'⚖',cor:'#3a6ea5',bg:'#eef3fb',txt:`Crime mais frequente: <b>${byCrime[0][0]}</b> (${byCrime[0][1]} caso${byCrime[0][1]>1?'s':''})`});
+  if(byUF.length) insights.push({ico:'📍',cor:'#4a8a62',bg:'#edf7f1',txt:`Estado com mais casos: <b>${byUF[0][0]}</b> (${byUF[0][1]} caso${byUF[0][1]>1?'s':''})`});
+  const abertosHoje=meses[meses.length-1].count;
+  if(abertosHoje>0) insights.push({ico:'📂',cor:'#6a3aaa',bg:'#f3eefb',txt:`<b>${abertosHoje} inquérito${abertosHoje>1?'s':''}</b> aberto${abertosHoje>1?'s':''} este mês`});
+  if(txConc>=70) insights.push({ico:'✅',cor:'#4a8a62',bg:'#edf7f1',txt:`Excelente taxa de conclusão de tarefas: <b>${txConc}%</b>`});
+  else if(txConc>0&&txConc<40) insights.push({ico:'📌',cor:'#e07b39',bg:'#fdf3ee',txt:`Taxa de conclusão de tarefas em <b>${txConc}%</b> — há ${tPend} pendentes`});
+
+  // ── card helper ───────────────────────────────────────
+  const card=(title,content,span=1)=>`
+    <div style="background:var(--white);border:1px solid var(--line);border-radius:var(--r2);padding:20px 22px;box-shadow:var(--shadow-sm);${span>1?`grid-column:span ${span}`:''}">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:14px">${title}</div>
+      ${content}
+    </div>`;
+
+  const kpi=(v,l,cor,sub='')=>`<div style="text-align:center;padding:4px 0">
+    <div style="font-family:'Playfair Display',serif;font-size:36px;font-weight:700;color:${cor};line-height:1">${v}</div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-top:4px">${l}</div>
+    ${sub?`<div style="font-size:11px;color:${cor};margin-top:2px">${sub}</div>`:''}
+  </div>`;
+
+  return `<div style="padding:24px;display:flex;flex-direction:column;gap:20px;max-width:1400px;margin:0 auto">
+
+    <!-- ── banner de insights ── -->
+    ${insights.length?`<div style="display:flex;flex-wrap:wrap;gap:10px">
+      ${insights.map(i=>`<div style="display:flex;align-items:center;gap:8px;background:${i.bg};border:1px solid ${i.cor}33;border-radius:var(--r2);padding:10px 14px;font-size:12px;color:var(--ink2);flex:1;min-width:240px">
+        <span style="font-size:16px;flex-shrink:0">${i.ico}</span>
+        <span>${i.txt}</span>
+      </div>`).join('')}
+    </div>`:''}
+
+    <!-- ── KPIs principais ── -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px">
+      ${card('Total de Inquéritos', kpi(total,'inquéritos','var(--navy)'))}
+      ${card('Em Apuração', kpi(inqs.filter(i=>i.status==='Em apuração').length,'ativos','#3a6ea5'))}
+      ${card('Prescrição Crítica', kpi(prescCrit,'críticos','#c94c4c',prescWarn?`+${prescWarn} em atenção`:''))}
+      ${card('Tarefas Pendentes', kpi(tPend,'pendentes','#c9a84c',tVenc?`${tVenc} vencida${tVenc>1?'s':''}`:'em dia'))}
+      ${card('Taxa de Conclusão', kpi(txConc+'%','tarefas','#4a8a62',`${tConc} de ${tarefas.length}`))}
+      ${card('Andamentos', kpi(andamentos.length,'total','#6a3aaa',`${andMeses[andMeses.length-1].count} este mês`))}
+    </div>
+
+    <!-- ── donuts: Status + Fase + Papel ── -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">
+      ${card('Distribuição por Status', donut(byStatus.map(([l,v],i)=>({l,v,cor:STATUS_CORES[l]||PALETA[i]})),'TOTAL'))}
+      ${card('Fase Processual', donut(byFase.map(([l,v],i)=>({l,v,cor:PALETA[i]})),'CASOS'))}
+      ${card('Papel do Cliente', donut(byPapel.map(([l,v],i)=>({l,v,cor:PALETA[i+3]})),'CLIENTES'))}
+    </div>
+
+    <!-- ── tendência mensal ── -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      ${card('Inquéritos Abertos por Mês (últimos 12 meses)', monthBars(meses,'#3a6ea5','#c9a84c'),1)}
+      ${card('Andamentos Registrados por Mês', monthBars(andMeses,'#4a8a62','#c9a84c'),1)}
+    </div>
+
+    <!-- ── prescrição semáforo ── -->
+    ${card('Painel de Prescrições', `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">
+      <div style="background:#edf7f1;border:1px solid #4a8a6244;border-radius:var(--r);padding:16px;text-align:center">
+        <div style="font-size:32px;font-weight:700;color:#4a8a62;font-family:'Playfair Display',serif">${prescOk}</div>
+        <div style="font-size:11px;color:#4a8a62;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-top:4px">✔ OK</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">> 180 dias</div>
+      </div>
+      <div style="background:#fdf8ec;border:1px solid #c9a84c44;border-radius:var(--r);padding:16px;text-align:center">
+        <div style="font-size:32px;font-weight:700;color:#c9a84c;font-family:'Playfair Display',serif">${prescWarn}</div>
+        <div style="font-size:11px;color:#c9a84c;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-top:4px">⚠ Atenção</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">180 – 365 dias</div>
+      </div>
+      <div style="background:#fdf0f0;border:1px solid #c94c4c44;border-radius:var(--r);padding:16px;text-align:center">
+        <div style="font-size:32px;font-weight:700;color:#c94c4c;font-family:'Playfair Display',serif">${prescCrit}</div>
+        <div style="font-size:11px;color:#c94c4c;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-top:4px">🔴 Crítico</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">< 180 dias</div>
+      </div>
+      <div style="background:#fbe8e8;border:1px solid #8b1a1a44;border-radius:var(--r);padding:16px;text-align:center">
+        <div style="font-size:32px;font-weight:700;color:#8b1a1a;font-family:'Playfair Display',serif">${prescExp}</div>
+        <div style="font-size:11px;color:#8b1a1a;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-top:4px">💀 Prescrito</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Prazo superado</div>
+      </div>
+      <div style="background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:16px;text-align:center">
+        <div style="font-size:32px;font-weight:700;color:var(--muted);font-family:'Playfair Display',serif">${prescNA}</div>
+        <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-top:4px">— S/ data</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Sem info</div>
+      </div>
+    </div>`, 1)}
+
+    <!-- ── crimes + localização ── -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      ${card('Top Crimes / Natureza Jurídica', hbars(byCrime.map(([l,v],i)=>({l,v,cor:PALETA[i]}))))}
+      ${card('Casos por Estado (UF)', byUF.length ? hbars(byUF.map(([l,v],i)=>({l,v,cor:PALETA[i]}))) : `<div style="color:var(--muted);font-size:12px;padding:8px">Preencha o campo UF nas fichas para visualizar este gráfico.</div>`)}
+    </div>
+
+    <!-- ── cidade + comarca ── -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      ${card('Top Cidades', byCidade.length ? hbars(byCidade.map(([l,v],i)=>({l,v,cor:PALETA[i+2]}))) : `<div style="color:var(--muted);font-size:12px;padding:8px">Preencha o campo Cidade nas fichas.</div>`)}
+      ${card('Top Comarcas / Varas', byComarca.length ? hbars(byComarca.map(([l,v],i)=>({l,v,cor:PALETA[i+4]}))) : `<div style="color:var(--muted);font-size:12px;padding:8px">Preencha o campo Comarca nas fichas.</div>`)}
+    </div>
+
+    <!-- ── tarefas ── -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      ${card('Tarefas Pendentes por Prioridade', donut([
+        {l:'Urgente',v:prioCount['urgente']||0,cor:'#c94c4c'},
+        {l:'Alta',   v:prioCount['alta']   ||0,cor:'#c9a84c'},
+        {l:'Normal', v:prioCount['normal'] ||0,cor:'#3a6ea5'},
+        {l:'Baixa',  v:prioCount['baixa']  ||0,cor:'#4a8a62'},
+      ].filter(d=>d.v>0),'PENDENTES'))}
+      ${card('Responsáveis com Mais Tarefas Pendentes', byResp.length ? hbars(byResp.map(([l,v],i)=>({l,v,cor:PALETA[i+1]}))) : `<div style="color:var(--muted);font-size:12px;padding:8px">Nenhuma tarefa pendente com responsável atribuído.</div>`)}
+    </div>
+
+    <div style="text-align:center;font-size:11px;color:var(--muted);padding:8px 0">
+      Dados calculados em tempo real · ${total} inquérito${total>1?'s':''} · ${tarefas.length} tarefa${tarefas.length!==1?'s':''} · ${andamentos.length} andamento${andamentos.length!==1?'s':''}
+    </div>
+  </div>`;
+}
+
 // DASHBOARD
 // ═══════════════════════════════════════════════════════
 function renderDash(){
