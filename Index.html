@@ -381,38 +381,52 @@ body {
 .tab-btn.active { color: var(--navy); border-bottom-color: var(--navy); font-weight: 600; }
 
 /* ── TIMELINE VERTICAL ─────────────────────────────── */
-.vtl { display: flex; flex-direction: column; gap: 0; }
-.vtl-item { display: flex; gap: 16px; padding-bottom: 20px; }
-.vtl-item:last-child { padding-bottom: 0; }
-.vtl-spine { display: flex; flex-direction: column; align-items: center; min-width: 28px; }
+.vtl { display: flex; flex-direction: column; }
+.vtl-item { display: flex; gap: 0; padding-bottom: 0; }
+.vtl-item:last-child .vtl-line { display: none; }
+.vtl-spine { display: flex; flex-direction: column; align-items: center; width: 48px; flex-shrink: 0; padding-top: 20px; }
 .vtl-dot {
-  width: 10px; height: 10px; border-radius: 50%;
-  background: var(--navy-lt); flex-shrink: 0; margin-top: 4px;
-  border: 2px solid var(--white); box-shadow: 0 0 0 2px var(--navy-lt);
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  background: var(--white); border: 2px solid var(--muted2);
+  transition: border-color .2s;
 }
-.vtl-line { width: 1px; flex: 1; background: var(--line); margin-top: 4px; }
+.vtl-item:hover .vtl-dot { border-color: var(--navy-lt); }
+.vtl-line { width: 1px; flex: 1; background: var(--line2); margin-top: 6px; }
 .vtl-card {
   flex: 1; background: var(--white);
-  border: 1px solid var(--line);
-  border-radius: var(--r2); padding: 12px 14px;
-  box-shadow: var(--shadow-sm);
+  border-bottom: 1px solid var(--line2);
+  padding: 18px 16px 18px 0;
+  transition: background .15s;
 }
-.vtl-head {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 6px; gap: 8px; flex-wrap: wrap;
+.vtl-item:hover .vtl-card { background: var(--paper); }
+.vtl-meta {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
 }
-.vtl-date { font-size: 11px; color: var(--muted); font-weight: 600; letter-spacing: .3px; }
-.vtl-body { font-size: 13px; color: var(--ink2); margin-bottom: 4px; line-height: 1.6; }
+.vtl-tipo {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .8px; color: var(--navy-lt);
+}
+.vtl-date { font-size: 11px; color: var(--muted); }
+.vtl-actions {
+  margin-left: auto; display: flex; gap: 4px;
+  opacity: 0; transition: opacity .15s;
+}
+.vtl-item:hover .vtl-actions { opacity: 1; }
+.vtl-body { font-size: 13px; color: var(--ink); line-height: 1.6; margin-bottom: 0; }
+.vtl-extras { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
 .vtl-comb {
-  font-size: 12px; color: var(--gold); background: var(--gold-bg);
-  border-left: 2px solid var(--gold-lt); padding: 5px 8px; border-radius: 0 4px 4px 0;
-  margin-top: 6px;
+  font-size: 12px; color: var(--gold);
+  border-left: 2px solid var(--gold-lt); padding: 4px 10px;
+  background: var(--gold-bg); border-radius: 0 var(--r) var(--r) 0;
 }
 .vtl-next {
-  font-size: 12px; color: var(--navy-lt); background: var(--navy-bg);
-  border-left: 2px solid var(--navy-lt); padding: 5px 8px; border-radius: 0 4px 4px 0;
-  margin-top: 4px;
+  font-size: 12px; color: var(--navy);
+  border-left: 2px solid var(--navy-lt); padding: 4px 10px;
+  background: var(--navy-bg); border-radius: 0 var(--r) var(--r) 0;
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
 }
+.vtl-prazo { font-size: 11px; font-weight: 600; color: var(--ink3); white-space: nowrap; }
+.vtl-resp { font-size: 11px; color: var(--muted); margin-top: 6px; }
 
 /* ── PRESCRIÇÃO ─────────────────────────────── */
 .presc-box {
@@ -1975,17 +1989,23 @@ function rAnds(inq){
   ${ands.length===0?'<div style="color:var(--muted);font-size:13px">Nenhum andamento encontrado.</div>':
     `<div class="vtl">${ands.map((a,idx)=>`
     <div class="vtl-item">
-      <div class="vtl-spine"><div class="vtl-dot"></div>${idx<ands.length-1?'<div class="vtl-line"></div>':''}</div>
+      <div class="vtl-spine"><div class="vtl-dot"></div><div class="vtl-line"></div></div>
       <div class="vtl-card">
-        <div class="vtl-head">
-          <span class="badge badge-navy">${a.tipo||'Andamento'}</span>
+        <div class="vtl-meta">
+          <span class="vtl-tipo">${a.tipo||'Andamento'}</span>
+          <span style="color:var(--muted2)">·</span>
           <span class="vtl-date">${new Date(a.data+'T00:00').toLocaleDateString('pt-BR')}</span>
-          <div style="display:flex;gap:4px;margin-left:auto"><button class="btn btn-secondary btn-xs" onclick="editarAnd('${a.id}')">Editar</button><button class="btn btn-danger btn-xs" onclick="delAnd('${a.id}')">Excluir</button></div>
+          <div class="vtl-actions">
+            <button class="btn btn-secondary btn-xs" onclick="editarAnd('${a.id}')">Editar</button>
+            <button class="btn btn-danger btn-xs" onclick="delAnd('${a.id}')">Excluir</button>
+          </div>
         </div>
         <div class="vtl-body">${a.descricao||''}</div>
-        ${a.combinado?`<div class="vtl-comb">Combinado: ${a.combinado}</div>`:''}
-        ${a.proximo_passo?`<div class="vtl-next">Próximo: ${a.proximo_passo}${a.prazo_proximo?' · '+new Date(a.prazo_proximo+'T00:00').toLocaleDateString('pt-BR'):''}</div>`:''}
-        ${a.responsavel?`<div style="font-size:11px;color:var(--muted);margin-top:4px">Responsável: ${a.responsavel}</div>`:''}
+        ${(a.combinado||a.proximo_passo)?`<div class="vtl-extras">
+          ${a.combinado?`<div class="vtl-comb">${a.combinado}</div>`:''}
+          ${a.proximo_passo?`<div class="vtl-next"><span>${a.proximo_passo}</span>${a.prazo_proximo?`<span class="vtl-prazo">${new Date(a.prazo_proximo+'T00:00').toLocaleDateString('pt-BR')}</span>`:''}</div>`:''}
+        </div>`:''}
+        ${a.responsavel?`<div class="vtl-resp">${a.responsavel}</div>`:''}
       </div>
     </div>`).join('')}</div>`}`;
 }
