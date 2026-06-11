@@ -923,6 +923,8 @@ body {
     <div class="nav-item" onclick="navigate('lista')"><span class="nav-icon">≡</span><span class="nav-label">Inquéritos</span></div>
     <div class="nav-item" onclick="navigate('agenda')"><span class="nav-icon">◷</span><span class="nav-label">Agenda / Prazos</span></div>
     <div class="nav-item" onclick="navigate('atividades')"><span class="nav-icon">◈</span><span class="nav-label">Atividades</span></div>
+    <div class="nav-item" onclick="navigate('tarefas')"><span class="nav-icon">✓</span><span class="nav-label">Tarefas</span></div>
+    <div class="nav-item" onclick="navigate('etiquetas')"><span class="nav-icon">#</span><span class="nav-label">Etiquetas</span></div>
     <div class="sb-section">Cadastros</div>
     <div class="nav-item" onclick="navigate('delegacias')"><span class="nav-icon">⊞</span><span class="nav-label">Delegacias</span></div>
     <div class="nav-item" onclick="navigate('contatos')"><span class="nav-icon">◉</span><span class="nav-label">Contatos Externos</span></div>
@@ -1415,10 +1417,10 @@ let curView='dashboard', curInqId=null, curTab=0, editId=null;
 function navigate(view,id=null){
   curView=view;
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  const map={dashboard:0,lista:1,agenda:2,atividades:3,delegacias:5,contatos:6,crimes:7};
+  const map={dashboard:0,lista:1,agenda:2,atividades:3,tarefas:4,etiquetas:5,delegacias:7,contatos:8,crimes:9};
   const items=document.querySelectorAll('.nav-item');
   if(map[view]!==undefined) items[map[view]]?.classList.add('active');
-  const titles={dashboard:'Dashboard',lista:'Inquéritos',ficha:'Ficha do Inquérito',agenda:'Agenda & Prazos',atividades:'Atividades',delegacias:'Delegacias & Órgãos',contatos:'Contatos Externos',crimes:'Tabela de Crimes'};
+  const titles={dashboard:'Dashboard',lista:'Inquéritos',ficha:'Ficha do Inquérito',agenda:'Agenda & Prazos',atividades:'Atividades',tarefas:'Tarefas',etiquetas:'Etiquetas',delegacias:'Delegacias & Órgãos',contatos:'Contatos Externos',crimes:'Tabela de Crimes'};
   document.getElementById('topbar-title').textContent=titles[view]||view;
   if(view==='ficha'&&id){curInqId=id;curTab=0;}
   render();
@@ -1433,6 +1435,8 @@ function render(){
     case 'ficha':      act.innerHTML=renderFichaAct();cnt.innerHTML=renderFicha();break;
     case 'agenda':     act.innerHTML='';cnt.innerHTML=renderAgenda();break;
     case 'atividades': act.innerHTML='';cnt.innerHTML=renderAtividades();break;
+    case 'tarefas':   act.innerHTML='';cnt.innerHTML=renderTarefasPage();break;
+    case 'etiquetas': act.innerHTML='';cnt.innerHTML=renderEtiquetasPage();break;
     case 'delegacias': act.innerHTML='<button class="btn btn-primary btn-sm" onclick="openModalDel()">+ Nova Delegacia</button>';cnt.innerHTML=renderDels();break;
     case 'contatos':   act.innerHTML='<button class="btn btn-primary btn-sm" onclick="openModalCont()">+ Novo Contato</button>';cnt.innerHTML=renderConts();break;
     case 'crimes':     act.innerHTML='<button class="btn btn-primary btn-sm" onclick="openModalCrime()">+ Novo Crime</button>';cnt.innerHTML=renderCrimes();break;
@@ -4286,15 +4290,20 @@ function toggleTarefa(id){
   ts[i].concluida=!ts[i].concluida;
   DB.set('tarefas',ts);
   logAtividade(ts[i].concluida?'concluiu tarefa':'reabriu tarefa','"'+ts[i].titulo+'"');
-  switchTab(2);
+  if(curView==='ficha') switchTab(2);
+  else if(curView==='tarefas') navigate('tarefas');
+  else render();
 }
 
 function delTarefa(id){
+  if(!confirm('Excluir esta tarefa?')) return;
   const ts=DB.get('tarefas');
   const t=ts.find(x=>x.id===id);
   DB.set('tarefas',ts.filter(x=>x.id!==id));
   if(t) logAtividade('removeu tarefa','"'+t.titulo+'"');
-  switchTab(2);
+  if(curView==='ficha') switchTab(2);
+  else if(curView==='tarefas') navigate('tarefas');
+  else render();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -4347,6 +4356,162 @@ function renderBuscaGlobal(q){
     <span class="gs-badge">${h.tipo}</span>
     <div><div class="gs-title">${h.titulo}</div>${h.sub?`<div class="gs-sub">${h.sub}</div>`:''}</div>
   </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// PÁGINA CENTRAL DE TAREFAS
+// ═══════════════════════════════════════════════════════
+function renderTarefasPage(){
+  const inqs=DB.get('inqueritos');
+  const hojeStr=new Date().toISOString().slice(0,10);
+  const todas=DB.get('tarefas');
+  const pendentes=todas.filter(t=>!t.concluida).sort((a,b)=>(a.prazo||'9')>(b.prazo||'9')?1:-1);
+  const concluidas=todas.filter(t=>t.concluida).sort((a,b)=>b.created_at>a.created_at?1:-1);
+
+  const renderT=(t,showConc=false)=>{
+    const inq=inqs.find(i=>i.id===t.inquerito_id);
+    const venc=t.prazo&&t.prazo<hojeStr&&!t.concluida;
+    return `<div class="task-item">
+      <div class="task-check ${t.concluida?'done':''}" onclick="toggleTarefa('${t.id}');navigate('tarefas')"></div>
+      <div style="flex:1;min-width:0">
+        <div class="task-title ${t.concluida?'done':''}">${t.titulo}</div>
+        <div class="task-meta" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:3px">
+          ${inq?`<span style="color:var(--navy-lt);font-weight:500;cursor:pointer" onclick="navigate('ficha','${inq.id}')">${inq.numero_ip||'S/N'} · ${inq.cliente}</span>`:''}
+          ${t.responsavel?`<span>· ${t.responsavel}</span>`:''}
+          ${t.prazo?`<span class="${venc?'venc':''}">${venc?'⚠ Venceu ':'Prazo: '}${new Date(t.prazo+'T00:00').toLocaleDateString('pt-BR')}</span>`:''}
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="btn btn-secondary btn-xs" onclick="editTarefa('${t.id}')">Editar</button>
+        <button class="btn btn-danger btn-xs" onclick="delTarefaPage('${t.id}')">Excluir</button>
+      </div>
+    </div>`;
+  };
+
+  return `
+  <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+    <div class="stat-card s-navy" style="flex:1;min-width:140px;padding:14px 18px">
+      <div class="stat-num" style="font-size:28px">${pendentes.length}</div>
+      <div class="stat-lbl">Pendentes</div>
+    </div>
+    <div class="stat-card s-crimson" style="flex:1;min-width:140px;padding:14px 18px">
+      <div class="stat-num" style="font-size:28px">${pendentes.filter(t=>t.prazo&&t.prazo<hojeStr).length}</div>
+      <div class="stat-lbl">Vencidas</div>
+    </div>
+    <div class="stat-card s-sage" style="flex:1;min-width:140px;padding:14px 18px">
+      <div class="stat-num" style="font-size:28px">${concluidas.length}</div>
+      <div class="stat-lbl">Concluídas</div>
+    </div>
+  </div>
+
+  <div class="card" style="padding:0 20px;margin-bottom:20px">
+    <div class="sec-hd" style="padding:16px 0 12px"><div class="sec-title">Pendentes</div></div>
+    ${pendentes.length?pendentes.map(t=>renderT(t)).join(''):'<div style="color:var(--muted);font-size:13px;padding-bottom:16px">Nenhuma tarefa pendente.</div>'}
+  </div>
+
+  ${concluidas.length?`<div class="card" style="padding:0 20px">
+    <div class="sec-hd" style="padding:16px 0 12px">
+      <div class="sec-title" style="color:var(--muted)">Concluídas (${concluidas.length})</div>
+    </div>
+    ${concluidas.slice(0,20).map(t=>renderT(t,true)).join('')}
+  </div>`:''}`;
+}
+
+function editTarefa(id){
+  const ts=DB.get('tarefas');
+  const t=ts.find(x=>x.id===id);
+  if(!t) return;
+  document.getElementById('mg-title').textContent='Editar Tarefa';
+  document.getElementById('mg-body').innerHTML=`<div style="padding:16px 22px;display:flex;flex-direction:column;gap:12px">
+    <div class="fg"><label>Título *</label><input id="tf-tit" value="${(t.titulo||'').replace(/"/g,'&quot;')}"></div>
+    <div class="frow">
+      <div class="fg"><label>Responsável</label><input id="tf-res" value="${t.responsavel||''}"></div>
+      <div class="fg"><label>Prazo</label><input id="tf-pra" type="date" value="${t.prazo||''}"></div>
+    </div>
+  </div>`;
+  document.getElementById('mg-ft').innerHTML=`
+    <button class="btn btn-secondary" onclick="closeModal('modal-generic')">Cancelar</button>
+    <button class="btn btn-primary" onclick="saveEditTarefa('${id}')">Salvar</button>`;
+  openModal('modal-generic');
+}
+
+function saveEditTarefa(id){
+  const tit=document.getElementById('tf-tit').value.trim();
+  if(!tit){alert('Informe o título.');return;}
+  const ts=DB.get('tarefas');
+  const i=ts.findIndex(x=>x.id===id);
+  if(i<0) return;
+  ts[i].titulo=tit;
+  ts[i].responsavel=document.getElementById('tf-res').value;
+  ts[i].prazo=document.getElementById('tf-pra').value;
+  DB.set('tarefas',ts);
+  logAtividade('editou tarefa','"'+tit+'"');
+  closeModal('modal-generic');
+  if(curView==='tarefas') navigate('tarefas');
+  else switchTab(2);
+}
+
+function delTarefaPage(id){
+  if(!confirm('Excluir esta tarefa?')) return;
+  const ts=DB.get('tarefas');
+  const t=ts.find(x=>x.id===id);
+  DB.set('tarefas',ts.filter(x=>x.id!==id));
+  if(t) logAtividade('removeu tarefa','"'+t.titulo+'"');
+  navigate('tarefas');
+}
+
+// ═══════════════════════════════════════════════════════
+// PÁGINA CENTRAL DE ETIQUETAS
+// ═══════════════════════════════════════════════════════
+function renderEtiquetasPage(){
+  const inqs=DB.get('inqueritos');
+  // agrupa todas as tags
+  const tagMap={};
+  inqs.forEach(i=>(i.tags||[]).forEach(t=>{
+    if(!tagMap[t]) tagMap[t]=[];
+    tagMap[t].push(i);
+  }));
+  const tags=Object.keys(tagMap).sort();
+
+  if(!tags.length) return `<div class="empty"><div class="empty-icon">#</div><div>Nenhuma etiqueta cadastrada ainda.<br><span style="font-size:12px">Abra um inquérito → aba Dados Gerais → campo Etiquetas</span></div></div>`;
+
+  return `<div style="margin-bottom:16px;font-size:13px;color:var(--muted)">${tags.length} etiqueta${tags.length>1?'s':''} em uso</div>
+  ${tags.map(tag=>`
+  <div class="card" style="margin-bottom:12px">
+    <div class="sec-hd">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="tag-pill" style="font-size:13px;padding:4px 12px">#${tag}</span>
+        <span style="font-size:12px;color:var(--muted)">${tagMap[tag].length} inquérito${tagMap[tag].length>1?'s':''}</span>
+      </div>
+      <button class="btn btn-danger btn-xs" onclick="delTagGlobal('${tag}')">Remover de todos</button>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
+      ${tagMap[tag].map(i=>`
+        <div style="display:flex;align-items:center;gap:6px;background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:6px 10px;cursor:pointer" onclick="navigate('ficha','${i.id}')">
+          <span style="font-size:12px;font-weight:600;color:var(--ink)">${i.numero_ip||'S/N'}</span>
+          <span style="font-size:12px;color:var(--muted)">${i.cliente}</span>
+          <span onclick="event.stopPropagation();removeTagInq('${i.id}','${tag}')" style="color:var(--muted);cursor:pointer;font-size:14px;line-height:1;margin-left:4px" title="Remover deste inquérito">×</span>
+        </div>`).join('')}
+    </div>
+  </div>`).join('')}`;
+}
+
+function delTagGlobal(tag){
+  if(!confirm('Remover a etiqueta "#'+tag+'" de todos os inquéritos?')) return;
+  const inqs=DB.get('inqueritos').map(i=>({...i,tags:(i.tags||[]).filter(t=>t!==tag)}));
+  DB.set('inqueritos',inqs);
+  logAtividade('removeu etiqueta global','#'+tag);
+  navigate('etiquetas');
+}
+
+function removeTagInq(inqId, tag){
+  const inqs=DB.get('inqueritos');
+  const i=inqs.findIndex(x=>x.id===inqId);
+  if(i<0) return;
+  inqs[i].tags=(inqs[i].tags||[]).filter(t=>t!==tag);
+  DB.set('inqueritos',inqs);
+  logAtividade('removeu tag','#'+tag);
+  navigate('etiquetas');
 }
 
 // ═══════════════════════════════════════════════════════
