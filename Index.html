@@ -847,12 +847,30 @@ body {
 /* ── TAGS ─────────────────────────────────────────────── */
 .tag-pill {
   display: inline-flex; align-items: center; gap: 4px;
-  font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 20px;
+  font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px;
   background: var(--paper); color: var(--ink3); border: 1px solid var(--line);
-  cursor: default;
+  cursor: default; white-space: nowrap;
 }
-.tag-pill .tag-x { cursor: pointer; color: var(--muted); font-size: 12px; line-height: 1; }
-.tag-pill .tag-x:hover { color: var(--crimson); }
+.tag-pill .tag-x { cursor: pointer; opacity: .6; font-size: 13px; line-height: 1; margin-left: 2px; }
+.tag-pill .tag-x:hover { opacity: 1; }
+/* tag picker */
+.tag-picker-wrap { position: relative; display: inline-block; }
+.tag-picker-drop {
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 200;
+  background: var(--white); border: 1px solid var(--line); border-radius: var(--r2);
+  box-shadow: var(--shadow-lg); min-width: 240px; padding: 8px 0;
+}
+.tag-picker-drop .tp-item {
+  display: flex; align-items: center; gap: 8px; padding: 7px 14px;
+  font-size: 12px; cursor: pointer; transition: background var(--tr);
+}
+.tag-picker-drop .tp-item:hover { background: var(--paper); }
+.tag-picker-drop .tp-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.tag-picker-new { padding: 8px 14px; border-top: 1px solid var(--line2); margin-top: 4px; }
+.tag-picker-new input { width: 100%; padding: 5px 8px; font-size: 12px; border: 1px solid var(--line); border-radius: var(--r); outline: none; font-family: 'Source Sans 3',sans-serif; box-sizing: border-box; }
+.tag-color-opts { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+.tag-color-opt { width: 18px; height: 18px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: border-color .15s; }
+.tag-color-opt.sel, .tag-color-opt:hover { border-color: var(--ink); }
 
 /* ── TAREFAS ──────────────────────────────────────────── */
 .task-item {
@@ -1732,7 +1750,7 @@ function gerarLinhas(){
       <td style="color:var(--ink3);font-size:12px">${i.numero_processo||'—'}</td>
       <td>
         <div style="font-weight:500;color:var(--ink)">${i.cliente||'—'}</div>
-        ${(i.tags||[]).length?`<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:3px">${(i.tags||[]).map(t=>`<span style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;background:var(--violet-bg);color:var(--violet)">#${t}</span>`).join('')}</div>`:''}
+        ${(i.tags||[]).length?`<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:4px">${(i.tags||[]).map(t=>renderTagPill(t)).join('')}</div>`:''}
       </td>
       <td style="max-width:200px;color:var(--ink3);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${i.crime||i.natureza||'—'}</td>
       <td onclick="event.stopPropagation()">
@@ -1997,10 +2015,11 @@ function rGeral(inq,p){
     <div class="field">
       <div class="fl">Etiquetas</div>
       <div style="background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:8px 11px;min-height:36px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-        ${(inq.tags||[]).map(t=>`<span class="tag-pill">${t}<span class="tag-x" onclick="removeTag('${inq.id}','${t}')">×</span></span>`).join('')}
-        <input id="tag-input-geral" placeholder="+ nova etiqueta, Enter para adicionar"
-          onkeydown="if(event.key==='Enter'){addTagGeral('${inq.id}',this.value);this.value='';event.preventDefault();}"
-          style="border:none;outline:none;font-size:12px;flex:1;min-width:180px;background:transparent;color:var(--ink2)">
+        ${(inq.tags||[]).map(t=>renderTagPill(t,inq.id)).join('')}
+        <div class="tag-picker-wrap">
+          <button class="btn btn-secondary btn-xs" style="border-radius:20px;font-size:11px" onclick="toggleTagPicker('tp-${inq.id}')">+ Etiqueta</button>
+          <div class="tag-picker-drop" id="tp-${inq.id}" style="display:none">${renderTagPickerDrop(inq.id)}</div>
+        </div>
       </div>
     </div>
 
@@ -4188,6 +4207,99 @@ function renderAtividades(){
 }
 
 // ═══════════════════════════════════════════════════════
+// TAGS — SISTEMA DE CORES
+// ═══════════════════════════════════════════════════════
+const TAG_CORES_DEFAULT = {
+  'urgente':    '#c94c4c',
+  'aguardando': '#c9a84c',
+  'análise':    '#3a6ea5',
+  'concluído':  '#4a8a62',
+  'atenção':    '#e07b39',
+  'prioridade': '#6a3aaa',
+};
+const TAG_PALETA = ['#c94c4c','#e07b39','#c9a84c','#4a8a62','#3a6ea5','#6a3aaa','#8a8fa8','#2d5a3d','#8b1a1a','#1a4a6b'];
+
+function _tagCores(){ return DB.get('tag_cores_map')||{}; }
+function _tagCor(tag){
+  const map=_tagCores();
+  if(map[tag]) return map[tag];
+  if(TAG_CORES_DEFAULT[tag.toLowerCase()]) return TAG_CORES_DEFAULT[tag.toLowerCase()];
+  // cor determinística baseada no nome
+  const h=tag.split('').reduce((a,c)=>a+c.charCodeAt(0),0);
+  return TAG_PALETA[h % TAG_PALETA.length];
+}
+function _setTagCor(tag, cor){
+  const map=_tagCores(); map[tag]=cor; DB.set('tag_cores_map', map);
+}
+
+function renderTagPill(tag, inqId=null){
+  const cor=_tagCor(tag);
+  const bg=cor+'22'; // ~13% opacity
+  const border=cor+'66';
+  const x=inqId?`<span class="tag-x" onclick="removeTag('${inqId}','${tag}')">×</span>`:'';
+  return `<span class="tag-pill" style="background:${bg};color:${cor};border-color:${border}">${tag}${x}</span>`;
+}
+
+function renderTagPickerDrop(inqId){
+  const inqs=DB.get('inqueritos');
+  const inq=inqs.find(i=>i.id===inqId);
+  const existing=inq?.tags||[];
+  const todas=DB.get('tag_cores_map')||{};
+  // junta padrões + criadas
+  const todasNomes=[...new Set([...Object.keys(TAG_CORES_DEFAULT),...Object.keys(todas)])].sort();
+  const disponiveis=todasNomes.filter(t=>!existing.includes(t));
+  return `<div>
+    ${disponiveis.length?disponiveis.map(t=>`
+      <div class="tp-item" onclick="addTagGeral('${inqId}','${t}')">
+        <span class="tp-dot" style="background:${_tagCor(t)}"></span>
+        <span>${t}</span>
+      </div>`).join(''):'<div style="padding:7px 14px;font-size:11px;color:var(--muted)">Todas as etiquetas já aplicadas</div>'}
+    <div class="tag-picker-new">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:6px">Nova etiqueta</div>
+      <input id="tp-new-name-${inqId}" placeholder="Nome da etiqueta…" onkeydown="if(event.key==='Enter')createAndAddTag('${inqId}')">
+      <div class="tag-color-opts" id="tp-color-${inqId}">
+        ${TAG_PALETA.map((c,i)=>`<div class="tag-color-opt${i===0?' sel':''}" style="background:${c}" data-cor="${c}" onclick="selectTagColor('${inqId}','${c}',this)"></div>`).join('')}
+      </div>
+      <button class="btn btn-primary btn-xs" style="margin-top:8px;width:100%" onclick="createAndAddTag('${inqId}')">Criar e aplicar</button>
+    </div>
+  </div>`;
+}
+
+function toggleTagPicker(id){
+  const el=document.getElementById(id);
+  if(!el) return;
+  const open=el.style.display==='none';
+  // fecha todos
+  document.querySelectorAll('.tag-picker-drop').forEach(d=>d.style.display='none');
+  if(open) el.style.display='block';
+}
+// fecha picker ao clicar fora
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.tag-picker-wrap')) document.querySelectorAll('.tag-picker-drop').forEach(d=>d.style.display='none');
+});
+
+function selectTagColor(inqId, cor, el){
+  document.querySelectorAll(`#tp-color-${inqId} .tag-color-opt`).forEach(d=>d.classList.remove('sel'));
+  el.classList.add('sel');
+  el.dataset.selected='1';
+}
+function _selectedColor(inqId){
+  const sel=document.querySelector(`#tp-color-${inqId} .tag-color-opt.sel`);
+  return sel?sel.dataset.cor:TAG_PALETA[0];
+}
+
+function createAndAddTag(inqId){
+  const inp=document.getElementById('tp-new-name-'+inqId);
+  if(!inp) return;
+  const nome=inp.value.trim().toLowerCase();
+  if(!nome) return;
+  const cor=_selectedColor(inqId);
+  _setTagCor(nome, cor);
+  addTag(inqId, nome);
+  switchTab(0);
+}
+
+// ═══════════════════════════════════════════════════════
 // TAGS
 // ═══════════════════════════════════════════════════════
 function renderTagsEditor(inqId){
@@ -4195,7 +4307,7 @@ function renderTagsEditor(inqId){
   const inq=inqs.find(i=>i.id===inqId);
   const tags=inq?.tags||[];
   return `<div id="tags-editor" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px">
-    ${tags.map(t=>`<span class="tag-pill">${t}<span class="tag-x" onclick="removeTag('${inqId}','${t}')">×</span></span>`).join('')}
+    ${tags.map(t=>renderTagPill(t,inqId)).join('')}
     <input id="tag-input" placeholder="+ tag" onkeydown="if(event.key==='Enter'){addTag('${inqId}',this.value);this.value='';}"
       style="border:none;outline:none;font-size:11px;width:60px;background:transparent;color:var(--ink3)" />
   </div>`;
@@ -4513,15 +4625,24 @@ function renderEtiquetasPage(){
   }));
   const tags=Object.keys(tagMap).sort();
 
-  if(!tags.length) return `<div class="empty"><div class="empty-icon">#</div><div>Nenhuma etiqueta cadastrada ainda.<br><span style="font-size:12px">Abra um inquérito → aba Dados Gerais → campo Etiquetas</span></div></div>`;
+  if(!tags.length) return `<div class="empty"><div class="empty-icon">#</div><div>Nenhuma etiqueta cadastrada ainda.<br><span style="font-size:12px">Abra um inquérito → aba Dados Gerais → botão "+ Etiqueta"</span></div></div>`;
 
-  return `<div style="margin-bottom:16px;font-size:13px;color:var(--muted)">${tags.length} etiqueta${tags.length>1?'s':''} em uso</div>
-  ${tags.map(tag=>`
-  <div class="card" style="margin-bottom:12px">
+  // também mostra padrões não usados para referência
+  const padraosNaoUsados=Object.keys(TAG_CORES_DEFAULT).filter(t=>!tags.includes(t));
+
+  return `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <div style="font-size:13px;color:var(--muted)">${tags.length} etiqueta${tags.length>1?'s':''} em uso</div>
+  </div>
+  ${tags.map(tag=>{
+    const cor=_tagCor(tag);
+    return `<div class="card" style="margin-bottom:12px">
     <div class="sec-hd">
       <div style="display:flex;align-items:center;gap:10px">
-        <span class="tag-pill" style="font-size:13px;padding:4px 12px">#${tag}</span>
+        ${renderTagPill(tag)}
         <span style="font-size:12px;color:var(--muted)">${tagMap[tag].length} inquérito${tagMap[tag].length>1?'s':''}</span>
+        <div class="tag-color-opts" style="margin:0">
+          ${TAG_PALETA.map(c=>`<div class="tag-color-opt${c===cor?' sel':''}" style="background:${c}" onclick="_setTagCor('${tag}','${c}');navigate('etiquetas')"></div>`).join('')}
+        </div>
       </div>
       <button class="btn btn-danger btn-xs" onclick="delTagGlobal('${tag}')">Remover de todos</button>
     </div>
@@ -4533,7 +4654,12 @@ function renderEtiquetasPage(){
           <span onclick="event.stopPropagation();removeTagInq('${i.id}','${tag}')" style="color:var(--muted);cursor:pointer;font-size:14px;line-height:1;margin-left:4px" title="Remover deste inquérito">×</span>
         </div>`).join('')}
     </div>
-  </div>`).join('')}`;
+  </div>`;}).join('')}
+  ${padraosNaoUsados.length?`<div style="margin-top:20px">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:10px">Etiquetas padrão disponíveis</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">${padraosNaoUsados.map(t=>renderTagPill(t)).join('')}</div>
+  </div>`:''}`;
+
 }
 
 function delTagGlobal(tag){
