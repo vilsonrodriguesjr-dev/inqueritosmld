@@ -3199,8 +3199,12 @@ function saveDoc(){
 function updateStatus(id,st){
   const inqs=DB.get('inqueritos');
   const idx=inqs.findIndex(x=>x.id===id);
-  if(idx>=0){inqs[idx].status=st;DB.set('inqueritos',inqs);}
-  // Atualiza badge class do select inline sem re-render completo
+  if(idx>=0){
+    const cli=inqs[idx].cliente||'';
+    inqs[idx].status=st;
+    DB.set('inqueritos',inqs);
+    logAtividade('alterou status para "'+st+'"', cli);
+  }
   const sel=event&&event.target;
   if(sel&&sel.tagName==='SELECT'){
     const cfg=STATUS_CFG[st]||STATUS_CFG['Em apuração'];
@@ -3980,9 +3984,8 @@ async function adminCreateUser() {
 // LOG DE ATIVIDADES
 // ═══════════════════════════════════════════════════════
 function logAtividade(acao, detalhe){
-  if(!_supaUser) return;
-  const nome=_userProfile?.nome||_userProfile?.email||'Usuário';
-  const ini=nome.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const nome=_userProfile?.nome||_userProfile?.email||(_supaUser?.email)||'Usuário';
+  const ini=nome.split(/[\s.@]+/).filter(Boolean).map(w=>w[0]).join('').slice(0,2).toUpperCase()||'??';
   const ativs=DB.get('atividades');
   ativs.unshift({id:DB.id(),user:nome,ini,acao,detalhe,ts:new Date().toISOString()});
   DB.set('atividades', ativs.slice(0,300));
